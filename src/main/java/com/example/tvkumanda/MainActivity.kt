@@ -10,8 +10,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
@@ -41,8 +41,6 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.X509KeyManager
 import javax.net.ssl.X509TrustManager
 import kotlin.math.abs
-
-// ---------------- Protobuf (elle, bagimlilik yok) ----------------
 
 object Pb {
     private val EMPTY = ByteArray(0)
@@ -100,8 +98,6 @@ object Pb {
         return out
     }
 }
-
-// ---------------- TLS yardimcilari ----------------
 
 class Identity(val key: PrivateKey, val cert: X509Certificate)
 
@@ -164,8 +160,6 @@ private fun BigInteger.unsigned(): ByteArray {
 private fun hexToBytes(s: String): ByteArray =
     ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
-// ---------------- Uygulama ----------------
-
 class MainActivity : Activity() {
 
     private val io = Executors.newSingleThreadExecutor()
@@ -190,17 +184,35 @@ class MainActivity : Activity() {
 
     private fun px(v: Int) = (v * dp).toInt()
 
+    private val screens = ArrayList<View>()
+
+    private fun screen(vararg v: View) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_VERTICAL
+        visibility = View.GONE
+        setPadding(px(14), px(8), px(14), px(8))
+        v.forEach { addView(it) }
+        screens.add(this)
+    }
+
+    private fun show(i: Int) {
+        screens.forEachIndexed { n, sc -> sc.visibility = if (n == i) View.VISIBLE else View.GONE }
+    }
+
+    private fun nav(label: String, i: Int) = Button(this).apply {
+        text = label
+        style(this, cBtn)
+        textSize = 13f
+        layoutParams = lp(52)
+        setOnClickListener { show(i) }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         dp = resources.displayMetrics.density
         val prefs = getSharedPreferences("tv", MODE_PRIVATE)
-
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(cBg)
-            setPadding(px(14), px(30), px(14), px(24))
-        }
+        val paired = prefs.getBoolean("paired", false)
 
         ipBox = EditText(this).apply {
             hint = "TV IP (örn. 192.168.1.105)"
@@ -209,29 +221,6 @@ class MainActivity : Activity() {
             setText(prefs.getString("ip", ""))
             setSingleLine()
         }
-        root.addView(ipBox)
-
-        root.addView(row(
-            Button(this).apply {
-                text = "Eşleştir"
-                style(this, cBtn)
-                layoutParams = lp(52)
-                setOnClickListener {
-                    prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
-                    startPairing()
-                }
-            },
-            Button(this).apply {
-                text = "Bağlan"
-                style(this, cAccent)
-                layoutParams = lp(52)
-                setOnClickListener {
-                    prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
-                    connectClicked()
-                }
-            }
-        ))
-
         codeBox = EditText(this).apply {
             hint = "TV'deki 6 haneli kod"
             setHintTextColor(Color.GRAY)
@@ -250,52 +239,99 @@ class MainActivity : Activity() {
                 setOnClickListener { finishPairing(codeBox.text.toString()) }
             })
         }
-        root.addView(codeRow)
-
         status = TextView(this).apply {
-            text = if (prefs.getBoolean("paired", false)) "Bağlı değil" else "Önce Eşleştir'e bas"
+            text = if (paired) "Bağlı değil" else "Önce TV'nin IP adresini yaz"
             setTextColor(Color.LTGRAY)
-            setPadding(px(4), px(8), 0, px(12))
+            setPadding(px(18), px(4), px(18), px(4))
         }
-        root.addView(status)
-
-        root.addView(row(gap(), key("▲", 19), gap()))
-        root.addView(row(key("◀", 21), key("OK", 23, cAccent), key("▶", 22)))
-        root.addView(row(gap(), key("▼", 20), gap()))
-
-        root.addView(touchPad())
-
-        root.addView(row(key("Geri", 4), key("Ana", 3), key("Ayarlar", 176)))
-        root.addView(row(key("Ses −", 25), key("Sessiz", 164), key("Ses +", 24)))
-        root.addView(row(key("⏯", 85), key("Aç/Kapat", 26, cRed)))
-
         textBox = EditText(this).apply {
             hint = "TV'ye yazılacak metin (a-z, 0-9)"
             setHintTextColor(Color.GRAY)
             setTextColor(Color.WHITE)
             setSingleLine()
         }
-        root.addView(textBox)
-        root.addView(row(
-            Button(this).apply {
-                text = "Gönder"
-                style(this, cAccent)
-                layoutParams = lp()
-                setOnClickListener { sendText(textBox.text.toString()) }
+
+        screen(
+            row(gap(), key("▲", 19), gap()),
+            row(key("◀", 21), key("OK", 23, cAccent), key("▶", 22)),
+            row(gap(), key("▼", 20), gap()),
+            row(key("Geri", 4), key("Ana", 3), key("Ayarlar", 176)),
+            row(key("Ses −", 25), key("Sessiz", 164), key("Ses +", 24)),
+            row(key("⏯", 85), key("Aç/Kapat", 26, cRed))
+        )
+        screen(touchPad(), row(key("Geri", 4), key("Ana", 3)))
+        screen(
+            textBox,
+            row(
+                Button(this).apply {
+                    text = "Gönder"
+                    style(this, cAccent)
+                    layoutParams = lp()
+                    setOnClickListener { sendText(textBox.text.toString()) }
+                },
+                key("Sil", 67),
+                key("Enter", 66)
+            )
+        )
+        screen(
+            TextView(this).apply {
+                text = "Bağlantı"
+                setTextColor(Color.WHITE)
+                textSize = 22f
+                setPadding(px(4), 0, 0, px(12))
             },
-            key("Sil", 67),
-            key("Enter", 66)
-        ))
+            ipBox,
+            row(
+                Button(this).apply {
+                    text = "Eşleştir"
+                    style(this, cBtn)
+                    layoutParams = lp(52)
+                    setOnClickListener {
+                        prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
+                        startPairing()
+                    }
+                },
+                Button(this).apply {
+                    text = "Bağlan"
+                    style(this, cAccent)
+                    layoutParams = lp(52)
+                    setOnClickListener {
+                        prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
+                        connectClicked()
+                    }
+                }
+            ),
+            codeRow
+        )
 
-        setContentView(ScrollView(this).apply {
+        val content = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+            )
+            screens.forEach {
+                addView(it, FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+                ))
+            }
+        }
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             setBackgroundColor(cBg)
-            addView(root)
-        })
+            setPadding(px(6), px(30), px(6), px(8))
+            addView(status)
+            addView(content)
+            addView(row(nav("Kumanda", 0), nav("Dokunmatik", 1), nav("Klavye", 2), nav("Bağlantı", 3)))
+        }
+        setContentView(root)
 
-        if (prefs.getBoolean("paired", false) && ipBox.text.isNotBlank()) connectClicked()
-    }
-
-    // ---------- UI yardimcilari ----------
+        if (paired && ipBox.text.isNotBlank()) {
+            show(0)
+            connectClicked()
+        } else {
+            show(3)
+        }
+    }[span_0](start_span)[span_0](end_span)
 
     private fun lp(h: Int = 68) = LinearLayout.LayoutParams(0, px(h), 1f).apply {
         setMargins(px(4), px(4), px(4), px(4))
@@ -335,7 +371,7 @@ class MainActivity : Activity() {
             setColor(Color.parseColor("#1D1E22"))
         }
         layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, px(200)
+            LinearLayout.LayoutParams.MATCH_PARENT, px(420)
         ).apply { setMargins(px(4), px(10), px(4), px(10)) }
 
         var lastX = 0f
@@ -370,8 +406,6 @@ class MainActivity : Activity() {
     }
 
     private fun ui(s: String) = runOnUiThread { status.text = s }
-
-    // ---------- Kimlik (istemci sertifikasi) ----------
 
     private fun identity(): Identity {
         identity?.let { return it }
@@ -417,8 +451,6 @@ class MainActivity : Activity() {
         s.startHandshake()
         return Conn(s)
     }
-
-    // ---------- Eslestirme (port 6467) ----------
 
     private fun outer(field: Int, inner: ByteArray) =
         Pb.int(1, 2) + Pb.int(2, 200) + Pb.bytes(field, inner)
@@ -492,13 +524,12 @@ class MainActivity : Activity() {
                 runOnUiThread { codeRow.visibility = View.GONE }
                 ui("Eşleşti ✔ Bağlanıyor…")
                 connectRemote()
+                runOnUiThread { show(0) }
             } catch (e: Exception) {
                 ui("Kod kabul edilmedi: ${e.message}. Eşleştir'e basıp tekrar dene")
             }
         }
     }
-
-    // ---------- Kumanda baglantisi (port 6466) ----------
 
     private fun connectClicked() {
         val h = ipBox.text.toString().trim()
@@ -511,6 +542,7 @@ class MainActivity : Activity() {
         io.execute {
             try {
                 connectRemote()
+                runOnUiThread { show(0) }
             } catch (e: Exception) {
                 ui("Bağlanamadı: ${e.message}. Gerekirse Eşleştir'e bas")
             }
