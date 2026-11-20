@@ -331,7 +331,7 @@ class MainActivity : Activity() {
         } else {
             show(3)
         }
-    }[span_0](start_span)[span_0](end_span)
+    }
 
     private fun lp(h: Int = 68) = LinearLayout.LayoutParams(0, px(h), 1f).apply {
         setMargins(px(4), px(4), px(4), px(4))
