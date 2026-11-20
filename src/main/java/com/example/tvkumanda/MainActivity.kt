@@ -74,27 +74,36 @@ object Pb {
         fun readVar(): Long {
             var r = 0L
             var shift = 0
-            while (true) {
+            while (i < b.size) {
                 val x = b[i++].toInt() and 0xFF
                 r = r or ((x and 0x7F).toLong() shl shift)
-                if ((x and 0x80) == 0) break
+                if ((x and 0x80) == 0) return r
                 shift += 7
+                if (shift > 63) break
             }
             return r
         }
         while (i < b.size) {
             val key = readVar().toInt()
             val num = key ushr 3
+            if (num <= 0) break
             when (key and 7) {
                 0 -> out.add(Field(num, readVar(), EMPTY))
                 2 -> {
                     val len = readVar().toInt()
+                    if (len < 0 || i + len > b.size) break
                     out.add(Field(num, 0, b.copyOfRange(i, i + len)))
                     i += len
                 }
-                1 -> i += 8
-                5 -> i += 4
-                else -> return out
+                1 -> {
+                    if (i + 8 > b.size) break
+                    i += 8
+                }
+                5 -> {
+                    if (i + 4 > b.size) break
+                    i += 4
+                }
+                else -> break
             }
         }
         return out
@@ -124,6 +133,7 @@ class Conn(val sock: SSLSocket) {
             if ((b and 0x80) == 0) break
             shift += 7
         }
+        if (len < 0 || len > 1024 * 1024) throw IllegalStateException("Geçersiz paket boyutu: $len")
         val buf = ByteArray(len)
         var off = 0
         while (off < len) {
@@ -159,8 +169,12 @@ private fun BigInteger.unsigned(): ByteArray {
     return if (b.size > 1 && b[0] == 0.toByte()) b.copyOfRange(1, b.size) else b
 }
 
-private fun hexToBytes(s: String): ByteArray =
-    ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+private fun hexToBytes(s: String): ByteArray {
+    require(s.length % 2 == 0) { "Hex uzunluğu çift olmalı" }
+    return ByteArray(s.length / 2) { idx ->
+        s.substring(idx * 2, idx * 2 + 2).toInt(16).toByte()
+    }
+}
 
 class MainActivity : Activity() {
 
@@ -200,11 +214,31 @@ class MainActivity : Activity() {
 
     private val screens = ArrayList<View>()
 
-    private fun screen(vararg v: View) = LinearLayout(this).apply {
+    private fun remoteScreen(vararg rows: LinearLayout) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        visibility = View.GONE
+        setPadding(px(12), px(6), px(12), px(6))
+        rows.forEachIndexed { idx, r ->
+            val w = when (idx) {
+                0 -> 0.92f
+                1, 3 -> 1.12f
+                2 -> 1.28f
+                4 -> 1.05f
+                else -> 1.02f
+            }
+            r.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, w
+            )
+            addView(r)
+        }
+        screens.add(this)
+    }
+
+    private fun formScreen(vararg v: View) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
-        setPadding(px(14), px(6), px(14), px(6))
+        setPadding(px(16), px(10), px(16), px(10))
         v.forEach { addView(it) }
         screens.add(this)
     }
@@ -213,17 +247,19 @@ class MainActivity : Activity() {
         screens.forEachIndexed { n, sc -> sc.visibility = if (n == i) View.VISIBLE else View.GONE }
         navBtns.forEachIndexed { n, b ->
             val active = n == i
-            b.background = makeButtonBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke, 14)
+            b.background = makePillBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke)
             b.setTextColor(if (active) Color.WHITE else Color.parseColor("#CBD5E1"))
         }
     }
 
     private fun nav(label: String, i: Int) = Button(this).apply {
         text = label
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13f))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14f))
         isAllCaps = false
         setPadding(px(4), px(2), px(4), px(2))
-        layoutParams = lp(50)
+        layoutParams = LinearLayout.LayoutParams(0, px(60), 1f).apply {
+            setMargins(px(5), px(4), px(5), px(4))
+        }
         navBtns.add(this)
         setOnClickListener {
             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -231,9 +267,20 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun makeButtonBg(fill: Int, stroke: Int, radiusDp: Int): RippleDrawable {
+    private fun makeCircleBg(fill: Int, stroke: Int): RippleDrawable {
         val shape = GradientDrawable().apply {
-            cornerRadius = px(radiusDp).toFloat()
+            shape = GradientDrawable.OVAL
+            setColor(fill)
+            setStroke(px(1), stroke)
+        }
+        val rippleColor = ColorStateList.valueOf(Color.parseColor("#40FFFFFF"))
+        return RippleDrawable(rippleColor, shape, null)
+    }
+
+    private fun makePillBg(fill: Int, stroke: Int): RippleDrawable {
+        val shape = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = px(999).toFloat()
             setColor(fill)
             setStroke(px(1), stroke)
         }
@@ -242,7 +289,7 @@ class MainActivity : Activity() {
     }
 
     private fun makeInputBg(): GradientDrawable = GradientDrawable().apply {
-        cornerRadius = px(14).toFloat()
+        cornerRadius = px(28).toFloat()
         setColor(cCard)
         setStroke(px(1), cBtnStroke)
     }
@@ -259,45 +306,48 @@ class MainActivity : Activity() {
             hint = "TV IP (örn. 192.168.1.105)"
             setHintTextColor(cMuted)
             setTextColor(cText)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15f))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(16f))
             background = makeInputBg()
-            setPadding(px(14), px(12), px(14), px(12))
+            setPadding(px(18), px(16), px(18), px(16))
             setText(prefs.getString("ip", ""))
             setSingleLine()
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(px(4), px(4), px(4), px(8)) }
+            ).apply { setMargins(px(4), px(6), px(4), px(14)) }
         }
         codeBox = EditText(this).apply {
             hint = "6 haneli kod"
             setHintTextColor(cMuted)
             setTextColor(cText)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15f))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(16f))
             background = makeInputBg()
-            setPadding(px(14), px(12), px(14), px(12))
+            setPadding(px(18), px(16), px(18), px(16))
             setSingleLine()
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                setMargins(px(4), px(4), px(6), px(4))
+                setMargins(px(4), px(4), px(8), px(4))
             }
         }
         codeRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             visibility = View.GONE
-            setPadding(0, px(8), 0, 0)
+            setPadding(0, px(10), 0, 0)
             addView(codeBox)
             addView(Button(this@MainActivity).apply {
                 text = "Onayla"
-                style(this, cAccent, cAccentStroke, 15f)
+                stylePill(this, cAccent, cAccentStroke, 16f)
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, px(50)
+                    LinearLayout.LayoutParams.WRAP_CONTENT, px(62)
                 ).apply { setMargins(px(4), px(4), px(4), px(4)) }
-                setOnClickListener { finishPairing(codeBox.text.toString()) }
+                setOnClickListener {
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    finishPairing(codeBox.text.toString())
+                }
             })
         }
         statusDot = View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(px(10), px(10)).apply {
-                setMargins(0, 0, px(8), 0)
+            layoutParams = LinearLayout.LayoutParams(px(11), px(11)).apply {
+                setMargins(0, 0, px(10), 0)
             }
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -307,65 +357,96 @@ class MainActivity : Activity() {
         status = TextView(this).apply {
             text = if (paired) "Bağlı değil" else "Önce TV'nin IP adresini yaz"
             setTextColor(Color.parseColor("#CBD5E1"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14f))
             setSingleLine()
         }
         textBox = EditText(this).apply {
             hint = "TV'ye yazılacak metin (a-z, 0-9)"
             setHintTextColor(cMuted)
             setTextColor(cText)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(16f))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(17f))
             background = makeInputBg()
-            setPadding(px(16), px(14), px(16), px(14))
+            setPadding(px(18), px(16), px(18), px(16))
             setSingleLine()
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(px(4), px(4), px(4), px(12)) }
+            ).apply { setMargins(px(4), px(6), px(4), px(14)) }
         }
 
-        screen(
-            row(gap(), key("▲", 19, sizeSp = 19f), gap()),
-            row(key("◀", 21, sizeSp = 19f), key("OK", 23, cAccent, cAccentStroke, 17f), key("▶", 22, sizeSp = 19f)),
-            row(gap(), key("▼", 20, sizeSp = 19f), gap()),
-            row(key("Geri", 4, sizeSp = 14.5f), key("Ana", 3, sizeSp = 14.5f), key("Ayarlar", 176, sizeSp = 14.5f)),
-            row(key("Ses −", 25, sizeSp = 15f), key("Sessiz", 164, sizeSp = 14.5f), key("Ses +", 24, sizeSp = 15f)),
-            row(key("⏯", 85, sizeSp = 18f), key("Aç/Kapat", 26, cRed, cRedStroke, 15f))
+        remoteScreen(
+            row(
+                pillKey("Ses +", 24, weight = 1.18f, sizeSp = 17f),
+                circleKey("Sessiz", 164, weight = 0.96f, sizeSp = 15f),
+                pillKey("Ses −", 25, weight = 1.18f, sizeSp = 17f)
+            ),
+            row(gap(0.9f), circleKey("▲", 19, weight = 1.22f, sizeSp = 25f), gap(0.9f)),
+            row(
+                circleKey("◀", 21, weight = 1.1f, sizeSp = 25f),
+                circleKey("OK", 23, cAccent, cAccentStroke, weight = 1.38f, sizeSp = 20.5f),
+                circleKey("▶", 22, weight = 1.1f, sizeSp = 25f)
+            ),
+            row(gap(0.9f), circleKey("▼", 20, weight = 1.22f, sizeSp = 25f), gap(0.9f)),
+            row(
+                pillKey("Geri", 4, weight = 1.12f, sizeSp = 16.5f),
+                circleKey("Ana", 3, weight = 1f, sizeSp = 16f),
+                pillKey("Ayarlar", 176, weight = 1.18f, sizeSp = 16f)
+            ),
+            row(
+                pillKey("⏯", 85, weight = 1.35f, sizeSp = 23f),
+                pillKey("Aç/Kapat", 26, cRed, cRedStroke, weight = 1.1f, sizeSp = 16.5f)
+            )
         )
-        screen(
+        formScreen(
             TextView(this).apply {
                 text = "Hızlı Metin"
                 setTextColor(cText)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(20f))
-                setPadding(px(4), 0, 0, px(8))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(22f))
+                setPadding(px(4), 0, 0, px(10))
             },
             textBox,
             row(
                 Button(this).apply {
                     text = "Gönder"
-                    style(this, cAccent, cAccentStroke, 15.5f)
-                    layoutParams = lp(62)
+                    stylePill(this, cAccent, cAccentStroke, 17f)
+                    layoutParams = btnLp(74, 1.25f)
                     setOnClickListener {
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         sendText(textBox.text.toString())
                     }
                 },
-                key("Sil", 67, sizeSp = 15f),
-                key("Enter", 66, sizeSp = 15f)
+                Button(this).apply {
+                    text = "Sil"
+                    stylePill(this, cBtn, cBtnStroke, 16.5f)
+                    layoutParams = btnLp(74, 0.95f)
+                    setOnClickListener {
+                        performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        sendKey(67)
+                    }
+                },
+                Button(this).apply {
+                    text = "Enter"
+                    stylePill(this, cBtn, cBtnStroke, 16.5f)
+                    layoutParams = btnLp(74, 1.05f)
+                    setOnClickListener {
+                        performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        sendKey(66)
+                    }
+                }
             )
         )
-        screen(
+        formScreen(
             TextView(this).apply {
                 text = "Bağlantı"
                 setTextColor(cText)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(20f))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(22f))
                 setPadding(px(4), 0, 0, px(10))
             },
             ipBox,
             row(
                 Button(this).apply {
                     text = "Eşleştir"
-                    style(this, cBtn, cBtnStroke, 15f)
-                    layoutParams = lp(52)
+                    stylePill(this, cBtn, cBtnStroke, 16.5f)
+                    layoutParams = btnLp(70, 1f)
                     setOnClickListener {
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
@@ -374,8 +455,8 @@ class MainActivity : Activity() {
                 },
                 Button(this).apply {
                     text = "Bağlan"
-                    style(this, cAccent, cAccentStroke, 15f)
-                    layoutParams = lp(52)
+                    stylePill(this, cAccent, cAccentStroke, 16.5f)
+                    layoutParams = btnLp(70, 1f)
                     setOnClickListener {
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
@@ -390,14 +471,14 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = GradientDrawable().apply {
-                cornerRadius = px(14).toFloat()
+                cornerRadius = px(999).toFloat()
                 setColor(cCard)
                 setStroke(px(1), cBtnStroke)
             }
-            setPadding(px(14), px(10), px(14), px(10))
+            setPadding(px(18), px(12), px(18), px(12))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(px(10), 0, px(10), px(6)) }
+            ).apply { setMargins(px(14), 0, px(14), px(6)) }
             addView(statusDot)
             addView(status)
         }
@@ -431,12 +512,24 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun lp(h: Int = 66) = LinearLayout.LayoutParams(0, px(h), 1f).apply {
-        setMargins(px(5), px(5), px(5), px(5))
+    private fun btnLp(h: Int, weight: Float = 1f) = LinearLayout.LayoutParams(0, px(h), weight).apply {
+        setMargins(px(6), px(6), px(6), px(6))
     }
 
-    private fun style(b: Button, fill: Int, stroke: Int, sizeSp: Float) {
-        b.background = makeButtonBg(fill, stroke, 16)
+    private fun fillLp(weight: Float = 1f) = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, weight).apply {
+        setMargins(px(6), px(5), px(6), px(5))
+    }
+
+    private fun stylePill(b: Button, fill: Int, stroke: Int, sizeSp: Float) {
+        b.background = makePillBg(fill, stroke)
+        b.setTextColor(cText)
+        b.isAllCaps = false
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(sizeSp))
+        b.setPadding(px(8), px(2), px(8), px(2))
+    }
+
+    private fun styleCircle(b: Button, fill: Int, stroke: Int, sizeSp: Float) {
+        b.background = makeCircleBg(fill, stroke)
         b.setTextColor(cText)
         b.isAllCaps = false
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(sizeSp))
@@ -449,17 +542,43 @@ class MainActivity : Activity() {
         views.forEach { addView(it) }
     }
 
-    private fun key(label: String, code: Int, fill: Int = cBtn, stroke: Int = cBtnStroke, sizeSp: Float = 16f) = Button(this).apply {
+    private fun pillKey(
+        label: String,
+        code: Int,
+        fill: Int = cBtn,
+        stroke: Int = cBtnStroke,
+        weight: Float = 1f,
+        sizeSp: Float = 17f
+    ) = Button(this).apply {
         text = label
-        style(this, fill, stroke, sizeSp)
-        layoutParams = lp()
+        stylePill(this, fill, stroke, sizeSp)
+        layoutParams = fillLp(weight)
         setOnClickListener {
             performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             sendKey(code)
         }
     }
 
-    private fun gap() = View(this).apply { layoutParams = lp() }
+    private fun circleKey(
+        label: String,
+        code: Int,
+        fill: Int = cBtn,
+        stroke: Int = cBtnStroke,
+        weight: Float = 1f,
+        sizeSp: Float = 18.5f
+    ) = Button(this).apply {
+        text = label
+        styleCircle(this, fill, stroke, sizeSp)
+        layoutParams = fillLp(weight)
+        setOnClickListener {
+            performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            sendKey(code)
+        }
+    }
+
+    private fun gap(weight: Float = 1f) = View(this).apply {
+        layoutParams = fillLp(weight)
+    }
 
     private fun ui(s: String, dotColor: Int = cMuted) = runOnUiThread {
         status.text = s
@@ -563,9 +682,10 @@ class MainActivity : Activity() {
         fastIo.execute {
             try {
                 val c = pairConn ?: throw IllegalStateException("Önce Eşleştir'e bas")
+                val serverCert = pairServerCert ?: throw IllegalStateException("TV sertifikası alınamadı")
                 val id = identity()
                 val clientPub = id.cert.publicKey as RSAPublicKey
-                val serverPub = pairServerCert!!.publicKey as RSAPublicKey
+                val serverPub = serverCert.publicKey as RSAPublicKey
                 val md = MessageDigest.getInstance("SHA-256")
                 md.update(clientPub.modulus.unsigned())
                 md.update(clientPub.publicExponent.unsigned())
@@ -620,7 +740,7 @@ class MainActivity : Activity() {
 
     private fun waitReady() {
         var waited = 0
-        while (!ready && waited < 2500) {
+        while (!ready && waited < 4000) {
             Thread.sleep(25)
             waited += 25
         }
@@ -685,7 +805,8 @@ class MainActivity : Activity() {
         } else {
             waitReady()
         }
-        remote!!.send(msg)
+        val activeConn = remote ?: throw IllegalStateException("Bağlantı kurulamadı")
+        activeConn.send(msg)
     }
 
     private fun sendKey(code: Int) = fastIo.execute {
@@ -712,12 +833,19 @@ class MainActivity : Activity() {
                     }
                     if (code >= 0) {
                         writeKey(code)
-                        Thread.sleep(15)
+                        Thread.sleep(20)
                     }
                 }
             } catch (e: Exception) {
                 ui("Gönderilemedi: ${e.message}", cRed)
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        pairConn?.close()
+        remote?.close()
+        fastIo.shutdownNow()
     }
 }
