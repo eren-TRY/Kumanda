@@ -2,11 +2,14 @@ package com.example.tvkumanda
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.Gravity
-import android.view.MotionEvent
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -40,7 +43,6 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509KeyManager
 import javax.net.ssl.X509TrustManager
-import kotlin.math.abs
 
 object Pb {
     private val EMPTY = ByteArray(0)
@@ -162,27 +164,39 @@ private fun hexToBytes(s: String): ByteArray =
 
 class MainActivity : Activity() {
 
-    private val io = Executors.newSingleThreadExecutor()
+    private val fastIo = Executors.newCachedThreadPool()
     private var identity: Identity? = null
     private var remote: Conn? = null
     @Volatile private var ready = false
+    @Volatile private var reconnecting = false
     private var pairConn: Conn? = null
     private var pairServerCert: X509Certificate? = null
     private var host = ""
 
+    private lateinit var statusDot: View
     private lateinit var status: TextView
     private lateinit var ipBox: EditText
     private lateinit var codeBox: EditText
     private lateinit var codeRow: LinearLayout
     private lateinit var textBox: EditText
     private var dp = 1f
+    private var sp = 1f
+    private val navBtns = ArrayList<Button>()
 
-    private val cBg = Color.parseColor("#121214")
-    private val cBtn = Color.parseColor("#2A2B30")
-    private val cAccent = Color.parseColor("#3D7BFF")
-    private val cRed = Color.parseColor("#D9363E")
+    private val cBg = Color.parseColor("#0E1015")
+    private val cCard = Color.parseColor("#171A22")
+    private val cBtn = Color.parseColor("#222733")
+    private val cBtnStroke = Color.parseColor("#32394A")
+    private val cAccent = Color.parseColor("#3B82F6")
+    private val cAccentStroke = Color.parseColor("#60A5FA")
+    private val cRed = Color.parseColor("#EF4444")
+    private val cRedStroke = Color.parseColor("#F87171")
+    private val cGreen = Color.parseColor("#22C55E")
+    private val cMuted = Color.parseColor("#64748B")
+    private val cText = Color.parseColor("#F8FAFC")
 
     private fun px(v: Int) = (v * dp).toInt()
+    private fun scaledSp(v: Float) = v * (sp / dp).coerceIn(0.85f, 1.35f)
 
     private val screens = ArrayList<View>()
 
@@ -190,112 +204,180 @@ class MainActivity : Activity() {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
-        setPadding(px(14), px(8), px(14), px(8))
+        setPadding(px(14), px(6), px(14), px(6))
         v.forEach { addView(it) }
         screens.add(this)
     }
 
     private fun show(i: Int) {
         screens.forEachIndexed { n, sc -> sc.visibility = if (n == i) View.VISIBLE else View.GONE }
+        navBtns.forEachIndexed { n, b ->
+            val active = n == i
+            b.background = makeButtonBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke, 14)
+            b.setTextColor(if (active) Color.WHITE else Color.parseColor("#CBD5E1"))
+        }
     }
 
     private fun nav(label: String, i: Int) = Button(this).apply {
         text = label
-        style(this, cBtn)
-        textSize = 13f
-        layoutParams = lp(52)
-        setOnClickListener { show(i) }
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13f))
+        isAllCaps = false
+        setPadding(px(4), px(2), px(4), px(2))
+        layoutParams = lp(50)
+        navBtns.add(this)
+        setOnClickListener {
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            show(i)
+        }
+    }
+
+    private fun makeButtonBg(fill: Int, stroke: Int, radiusDp: Int): RippleDrawable {
+        val shape = GradientDrawable().apply {
+            cornerRadius = px(radiusDp).toFloat()
+            setColor(fill)
+            setStroke(px(1), stroke)
+        }
+        val rippleColor = ColorStateList.valueOf(Color.parseColor("#40FFFFFF"))
+        return RippleDrawable(rippleColor, shape, null)
+    }
+
+    private fun makeInputBg(): GradientDrawable = GradientDrawable().apply {
+        cornerRadius = px(14).toFloat()
+        setColor(cCard)
+        setStroke(px(1), cBtnStroke)
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         dp = resources.displayMetrics.density
+        sp = resources.displayMetrics.scaledDensity
         val prefs = getSharedPreferences("tv", MODE_PRIVATE)
         val paired = prefs.getBoolean("paired", false)
 
         ipBox = EditText(this).apply {
             hint = "TV IP (örn. 192.168.1.105)"
-            setHintTextColor(Color.GRAY)
-            setTextColor(Color.WHITE)
+            setHintTextColor(cMuted)
+            setTextColor(cText)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15f))
+            background = makeInputBg()
+            setPadding(px(14), px(12), px(14), px(12))
             setText(prefs.getString("ip", ""))
             setSingleLine()
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(px(4), px(4), px(4), px(8)) }
         }
         codeBox = EditText(this).apply {
-            hint = "TV'deki 6 haneli kod"
-            setHintTextColor(Color.GRAY)
-            setTextColor(Color.WHITE)
+            hint = "6 haneli kod"
+            setHintTextColor(cMuted)
+            setTextColor(cText)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15f))
+            background = makeInputBg()
+            setPadding(px(14), px(12), px(14), px(12))
             setSingleLine()
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(px(4), px(4), px(6), px(4))
+            }
         }
         codeRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             visibility = View.GONE
+            setPadding(0, px(8), 0, 0)
             addView(codeBox)
             addView(Button(this@MainActivity).apply {
                 text = "Onayla"
-                style(this, cAccent)
+                style(this, cAccent, cAccentStroke, 15f)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, px(50)
+                ).apply { setMargins(px(4), px(4), px(4), px(4)) }
                 setOnClickListener { finishPairing(codeBox.text.toString()) }
             })
         }
+        statusDot = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(px(10), px(10)).apply {
+                setMargins(0, 0, px(8), 0)
+            }
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(cMuted)
+            }
+        }
         status = TextView(this).apply {
             text = if (paired) "Bağlı değil" else "Önce TV'nin IP adresini yaz"
-            setTextColor(Color.LTGRAY)
-            setPadding(px(18), px(4), px(18), px(4))
+            setTextColor(Color.parseColor("#CBD5E1"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f))
+            setSingleLine()
         }
         textBox = EditText(this).apply {
             hint = "TV'ye yazılacak metin (a-z, 0-9)"
-            setHintTextColor(Color.GRAY)
-            setTextColor(Color.WHITE)
+            setHintTextColor(cMuted)
+            setTextColor(cText)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(16f))
+            background = makeInputBg()
+            setPadding(px(16), px(14), px(16), px(14))
             setSingleLine()
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(px(4), px(4), px(4), px(12)) }
         }
 
         screen(
-            row(gap(), key("▲", 19), gap()),
-            row(key("◀", 21), key("OK", 23, cAccent), key("▶", 22)),
-            row(gap(), key("▼", 20), gap()),
-            row(key("Geri", 4), key("Ana", 3), key("Ayarlar", 176)),
-            row(key("Ses −", 25), key("Sessiz", 164), key("Ses +", 24)),
-            row(key("⏯", 85), key("Aç/Kapat", 26, cRed))
+            row(gap(), key("▲", 19, sizeSp = 19f), gap()),
+            row(key("◀", 21, sizeSp = 19f), key("OK", 23, cAccent, cAccentStroke, 17f), key("▶", 22, sizeSp = 19f)),
+            row(gap(), key("▼", 20, sizeSp = 19f), gap()),
+            row(key("Geri", 4, sizeSp = 14.5f), key("Ana", 3, sizeSp = 14.5f), key("Ayarlar", 176, sizeSp = 14.5f)),
+            row(key("Ses −", 25, sizeSp = 15f), key("Sessiz", 164, sizeSp = 14.5f), key("Ses +", 24, sizeSp = 15f)),
+            row(key("⏯", 85, sizeSp = 18f), key("Aç/Kapat", 26, cRed, cRedStroke, 15f))
         )
-        screen(touchPad(), row(key("Geri", 4), key("Ana", 3)))
         screen(
+            TextView(this).apply {
+                text = "Hızlı Metin"
+                setTextColor(cText)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(20f))
+                setPadding(px(4), 0, 0, px(8))
+            },
             textBox,
             row(
                 Button(this).apply {
                     text = "Gönder"
-                    style(this, cAccent)
-                    layoutParams = lp()
-                    setOnClickListener { sendText(textBox.text.toString()) }
+                    style(this, cAccent, cAccentStroke, 15.5f)
+                    layoutParams = lp(62)
+                    setOnClickListener {
+                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        sendText(textBox.text.toString())
+                    }
                 },
-                key("Sil", 67),
-                key("Enter", 66)
+                key("Sil", 67, sizeSp = 15f),
+                key("Enter", 66, sizeSp = 15f)
             )
         )
         screen(
             TextView(this).apply {
                 text = "Bağlantı"
-                setTextColor(Color.WHITE)
-                textSize = 22f
-                setPadding(px(4), 0, 0, px(12))
+                setTextColor(cText)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(20f))
+                setPadding(px(4), 0, 0, px(10))
             },
             ipBox,
             row(
                 Button(this).apply {
                     text = "Eşleştir"
-                    style(this, cBtn)
+                    style(this, cBtn, cBtnStroke, 15f)
                     layoutParams = lp(52)
                     setOnClickListener {
+                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
                         startPairing()
                     }
                 },
                 Button(this).apply {
                     text = "Bağlan"
-                    style(this, cAccent)
+                    style(this, cAccent, cAccentStroke, 15f)
                     layoutParams = lp(52)
                     setOnClickListener {
+                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
                         connectClicked()
                     }
@@ -303,6 +385,22 @@ class MainActivity : Activity() {
             ),
             codeRow
         )
+
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable().apply {
+                cornerRadius = px(14).toFloat()
+                setColor(cCard)
+                setStroke(px(1), cBtnStroke)
+            }
+            setPadding(px(14), px(10), px(14), px(10))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(px(10), 0, px(10), px(6)) }
+            addView(statusDot)
+            addView(status)
+        }
 
         val content = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -318,10 +416,10 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(cBg)
-            setPadding(px(6), px(30), px(6), px(8))
-            addView(status)
+            setPadding(px(6), px(28), px(6), px(8))
+            addView(topBar)
             addView(content)
-            addView(row(nav("Kumanda", 0), nav("Dokunmatik", 1), nav("Klavye", 2), nav("Bağlantı", 3)))
+            addView(row(nav("Kumanda", 0), nav("Klavye", 1), nav("Bağlantı", 2)))
         }
         setContentView(root)
 
@@ -329,83 +427,44 @@ class MainActivity : Activity() {
             show(0)
             connectClicked()
         } else {
-            show(3)
+            show(2)
         }
     }
 
-    private fun lp(h: Int = 68) = LinearLayout.LayoutParams(0, px(h), 1f).apply {
-        setMargins(px(4), px(4), px(4), px(4))
+    private fun lp(h: Int = 66) = LinearLayout.LayoutParams(0, px(h), 1f).apply {
+        setMargins(px(5), px(5), px(5), px(5))
     }
 
-    private fun style(b: Button, color: Int) {
-        b.background = GradientDrawable().apply {
-            cornerRadius = px(16).toFloat()
-            setColor(color)
-        }
-        b.setTextColor(Color.WHITE)
+    private fun style(b: Button, fill: Int, stroke: Int, sizeSp: Float) {
+        b.background = makeButtonBg(fill, stroke, 16)
+        b.setTextColor(cText)
         b.isAllCaps = false
-        b.textSize = 16f
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(sizeSp))
+        b.setPadding(px(4), px(2), px(4), px(2))
     }
 
     private fun row(vararg views: View) = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
         views.forEach { addView(it) }
     }
 
-    private fun key(label: String, code: Int, color: Int = cBtn) = Button(this).apply {
+    private fun key(label: String, code: Int, fill: Int = cBtn, stroke: Int = cBtnStroke, sizeSp: Float = 16f) = Button(this).apply {
         text = label
-        style(this, color)
+        style(this, fill, stroke, sizeSp)
         layoutParams = lp()
-        setOnClickListener { sendKey(code) }
+        setOnClickListener {
+            performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            sendKey(code)
+        }
     }
 
     private fun gap() = View(this).apply { layoutParams = lp() }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private fun touchPad() = TextView(this).apply {
-        text = "Dokunmatik alan\nkaydır = yön, dokun = OK"
-        setTextColor(Color.GRAY)
-        gravity = Gravity.CENTER
-        background = GradientDrawable().apply {
-            cornerRadius = px(20).toFloat()
-            setColor(Color.parseColor("#1D1E22"))
-        }
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, px(420)
-        ).apply { setMargins(px(4), px(10), px(4), px(10)) }
-
-        var lastX = 0f
-        var lastY = 0f
-        var moved = false
-        val step = px(48).toFloat()
-
-        setOnTouchListener { v, e ->
-            when (e.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    v.parent.requestDisallowInterceptTouchEvent(true)
-                    lastX = e.x; lastY = e.y; moved = false
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = e.x - lastX
-                    val dy = e.y - lastY
-                    if (abs(dx) > step || abs(dy) > step) {
-                        val code = if (abs(dx) > abs(dy)) {
-                            if (dx > 0) 22 else 21
-                        } else {
-                            if (dy > 0) 20 else 19
-                        }
-                        sendKey(code)
-                        moved = true
-                        lastX = e.x; lastY = e.y
-                    }
-                }
-                MotionEvent.ACTION_UP -> if (!moved) sendKey(23)
-            }
-            true
-        }
+    private fun ui(s: String, dotColor: Int = cMuted) = runOnUiThread {
+        status.text = s
+        (statusDot.background as? GradientDrawable)?.setColor(dotColor)
     }
-
-    private fun ui(s: String) = runOnUiThread { status.text = s }
 
     private fun identity(): Identity {
         identity?.let { return it }
@@ -445,7 +504,7 @@ class MainActivity : Activity() {
         val ctx = SSLContext.getInstance("TLS")
         ctx.init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null)
         val s = ctx.socketFactory.createSocket() as SSLSocket
-        s.connect(InetSocketAddress(h, port), 6000)
+        s.connect(InetSocketAddress(h, port), 4000)
         s.tcpNoDelay = true
         s.soTimeout = readTimeoutMs
         s.startHandshake()
@@ -467,12 +526,12 @@ class MainActivity : Activity() {
     private fun startPairing() {
         val h = ipBox.text.toString().trim()
         if (h.isEmpty()) {
-            status.text = "Önce TV'nin IP adresini yaz"
+            ui("Önce TV'nin IP adresini yaz", cRed)
             return
         }
         host = h
-        status.text = "Eşleştirme başlıyor…"
-        io.execute {
+        ui("Eşleştirme başlıyor…", cAccent)
+        fastIo.execute {
             try {
                 pairConn?.close()
                 val id = identity()
@@ -488,9 +547,9 @@ class MainActivity : Activity() {
 
                 pairConn = c
                 runOnUiThread { codeRow.visibility = View.VISIBLE }
-                ui("TV'de çıkan 6 haneli kodu yazıp Onayla'ya bas")
+                ui("TV'deki 6 haneli kodu yazıp Onayla'ya bas", cAccent)
             } catch (e: Exception) {
-                ui("Eşleştirme başarısız: ${e.message}")
+                ui("Eşleştirme başarısız: ${e.message}", cRed)
             }
         }
     }
@@ -498,10 +557,10 @@ class MainActivity : Activity() {
     private fun finishPairing(raw: String) {
         val code = raw.trim().uppercase()
         if (code.length != 6) {
-            status.text = "Kod 6 karakter olmalı"
+            ui("Kod 6 karakter olmalı", cRed)
             return
         }
-        io.execute {
+        fastIo.execute {
             try {
                 val c = pairConn ?: throw IllegalStateException("Önce Eşleştir'e bas")
                 val id = identity()
@@ -522,11 +581,11 @@ class MainActivity : Activity() {
 
                 getSharedPreferences("tv", MODE_PRIVATE).edit().putBoolean("paired", true).apply()
                 runOnUiThread { codeRow.visibility = View.GONE }
-                ui("Eşleşti ✔ Bağlanıyor…")
+                ui("Eşleşti — Bağlanıyor…", cAccent)
                 connectRemote()
                 runOnUiThread { show(0) }
             } catch (e: Exception) {
-                ui("Kod kabul edilmedi: ${e.message}. Eşleştir'e basıp tekrar dene")
+                ui("Kod kabul edilmedi: ${e.message}", cRed)
             }
         }
     }
@@ -534,21 +593,22 @@ class MainActivity : Activity() {
     private fun connectClicked() {
         val h = ipBox.text.toString().trim()
         if (h.isEmpty()) {
-            status.text = "Önce TV'nin IP adresini yaz"
+            ui("Önce TV'nin IP adresini yaz", cRed)
             return
         }
         host = h
-        status.text = "Bağlanıyor…"
-        io.execute {
+        ui("Bağlanıyor…", cAccent)
+        fastIo.execute {
             try {
                 connectRemote()
                 runOnUiThread { show(0) }
             } catch (e: Exception) {
-                ui("Bağlanamadı: ${e.message}. Gerekirse Eşleştir'e bas")
+                ui("Bağlanamadı: ${e.message}", cRed)
             }
         }
     }
 
+    @Synchronized
     private fun connectRemote() {
         ready = false
         remote?.close()
@@ -560,9 +620,9 @@ class MainActivity : Activity() {
 
     private fun waitReady() {
         var waited = 0
-        while (!ready && waited < 4000) {
-            Thread.sleep(100)
-            waited += 100
+        while (!ready && waited < 2500) {
+            Thread.sleep(25)
+            waited += 25
         }
     }
 
@@ -586,16 +646,16 @@ class MainActivity : Activity() {
                         }
                         40 -> {
                             ready = true
-                            ui("Bağlandı ✔")
+                            ui("Bağlandı", cGreen)
                         }
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             if (remote === c) {
                 remote = null
                 ready = false
-                ui("Bağlantı koptu (tuşa basınca otomatik yeniden bağlanır)")
+                ui("Bağlantı koptu", cRed)
             }
         }
     }
@@ -604,27 +664,41 @@ class MainActivity : Activity() {
 
     private fun writeKey(code: Int) {
         val msg = keyMsg(code)
-        try {
-            val c = remote ?: throw IllegalStateException("kapalı")
-            c.send(msg)
-        } catch (e: Exception) {
-            if (host.isEmpty()) throw e
-            connectRemote()
-            remote!!.send(msg)
+        val c = remote
+        if (c != null) {
+            try {
+                c.send(msg)
+                return
+            } catch (_: Exception) {
+                remote = null
+                ready = false
+            }
         }
+        if (host.isEmpty()) throw IllegalStateException("TV IP girilmemiş")
+        if (!reconnecting) {
+            reconnecting = true
+            try {
+                connectRemote()
+            } finally {
+                reconnecting = false
+            }
+        } else {
+            waitReady()
+        }
+        remote!!.send(msg)
     }
 
-    private fun sendKey(code: Int) = io.execute {
+    private fun sendKey(code: Int) = fastIo.execute {
         try {
             writeKey(code)
         } catch (e: Exception) {
-            ui("Gönderilemedi: ${e.message}")
+            ui("Gönderilemedi: ${e.message}", cRed)
         }
     }
 
     private fun sendText(t: String) {
         if (t.isEmpty()) return
-        io.execute {
+        fastIo.execute {
             try {
                 for (ch in t.lowercase()) {
                     val code = when (ch) {
@@ -638,11 +712,11 @@ class MainActivity : Activity() {
                     }
                     if (code >= 0) {
                         writeKey(code)
-                        Thread.sleep(40)
+                        Thread.sleep(15)
                     }
                 }
             } catch (e: Exception) {
-                ui("Gönderilemedi: ${e.message}")
+                ui("Gönderilemedi: ${e.message}", cRed)
             }
         }
     }
