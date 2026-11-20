@@ -30,6 +30,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import org.bouncycastle.asn1.x500.X500Name
@@ -52,11 +53,11 @@ import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Collections
 import java.util.Date
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.KeyManager
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
@@ -417,14 +418,20 @@ private val stringsMap = mapOf(
     "tr" to mapOf(
         "tabRemote" to "Kumanda", "tabConnect" to "Bağlantı", "power" to "Güç",
         "tvIp" to "TV IP Adresi", "scanTv" to "Ağda TV Ara", "settings" to "Ayarlar",
-        "hapticLevel" to "Titreşim Şiddeti", "theme" to "Renk Paleti", "lang" to "Dil",
+        "hapticLevel" to "Titreşim Şiddeti", "wheelSize" to "Orta Tuş Boyutu",
+        "theme" to "Renk Paleti", "lang" to "Dil",
         "codeHint" to "6 haneli kod", "confirm" to "Onayla", "connect" to "Bağlan",
         "autoOn" to "Oto Bağlan: Açık", "autoOff" to "Oto Bağlan: Kapalı",
         "resetPair" to "Eşleştirmeyi Sıfırla", "contactUs" to "Bize Ulaşın",
         "vibOff" to "Kapalı", "vibLight" to "Hafif", "vibMed" to "Orta", "vibStrong" to "Güçlü",
+        "sizeSmall" to "Küçük", "sizeMedium" to "Orta", "sizeLarge" to "Büyük",
         "palBlue" to "Mavi", "palEmerald" to "Zümrüt", "palPurple" to "Mor",
         "palAmber" to "Kehribar", "palBw" to "Siyah Beyaz", "palCrimson" to "Yakut",
         "palCyan" to "Camgöbeği", "palCoral" to "Mercan",
+        "scanModalTitle" to "TV Cihazları",
+        "scanSearching" to "Ağınızda TV cihazları aranıyor…",
+        "scanTroubles" to "Bağlantı sorunları?",
+        "scanTroublesTip" to "Telefon ve TV aynı Wi-Fi ağında olmalı ve cihaz izolasyonu kapalı olmalıdır. Bulunamazsa IP'yi elle girin.",
         StatusState.DISCONNECTED.name to "Bağlı değil",
         StatusState.ENTER_IP.name to "Önce TV'nin IP adresini yaz",
         StatusState.PAIRING_START.name to "Eşleştirme başlıyor…",
@@ -447,14 +454,20 @@ private val stringsMap = mapOf(
     "en" to mapOf(
         "tabRemote" to "Remote", "tabConnect" to "Connection", "power" to "Power",
         "tvIp" to "TV IP Address", "scanTv" to "Find TV on Network", "settings" to "Settings",
-        "hapticLevel" to "Haptic Strength", "theme" to "Color Palette", "lang" to "Language",
+        "hapticLevel" to "Haptic Strength", "wheelSize" to "Center Wheel Size",
+        "theme" to "Color Palette", "lang" to "Language",
         "codeHint" to "6-digit code", "confirm" to "Confirm", "connect" to "Connect",
         "autoOn" to "Auto Connect: On", "autoOff" to "Auto Connect: Off",
         "resetPair" to "Reset Pairing", "contactUs" to "Contact Us",
         "vibOff" to "Off", "vibLight" to "Light", "vibMed" to "Medium", "vibStrong" to "Strong",
+        "sizeSmall" to "Small", "sizeMedium" to "Medium", "sizeLarge" to "Large",
         "palBlue" to "Blue", "palEmerald" to "Emerald", "palPurple" to "Purple",
         "palAmber" to "Amber", "palBw" to "Black & White", "palCrimson" to "Crimson",
         "palCyan" to "Cyan", "palCoral" to "Coral",
+        "scanModalTitle" to "TV Devices",
+        "scanSearching" to "Searching for TV devices on your network…",
+        "scanTroubles" to "Connection troubles?",
+        "scanTroublesTip" to "Keep phone and TV on the same Wi-Fi without AP isolation, or enter the TV IP manually.",
         StatusState.DISCONNECTED.name to "Disconnected",
         StatusState.ENTER_IP.name to "Enter the TV IP address first",
         StatusState.PAIRING_START.name to "Starting pairing…",
@@ -477,14 +490,20 @@ private val stringsMap = mapOf(
     "ru" to mapOf(
         "tabRemote" to "Пульт", "tabConnect" to "Подключение", "power" to "Питание",
         "tvIp" to "IP-адрес ТВ", "scanTv" to "Найти ТВ в сети", "settings" to "Настройки",
-        "hapticLevel" to "Сила вибрации", "theme" to "Палитра цветов", "lang" to "Язык",
+        "hapticLevel" to "Сила вибрации", "wheelSize" to "Размер круга",
+        "theme" to "Палитра цветов", "lang" to "Язык",
         "codeHint" to "6-значный код", "confirm" to "ОК", "connect" to "Подключить",
         "autoOn" to "Автоподкл.: Вкл", "autoOff" to "Автоподкл.: Выкл",
         "resetPair" to "Сбросить пару", "contactUs" to "Связаться с нами",
         "vibOff" to "Выкл", "vibLight" to "Слабая", "vibMed" to "Средняя", "vibStrong" to "Сильная",
+        "sizeSmall" to "Малый", "sizeMedium" to "Средний", "sizeLarge" to "Большой",
         "palBlue" to "Синяя", "palEmerald" to "Изумруд", "palPurple" to "Фиолетовая",
         "palAmber" to "Янтарная", "palBw" to "Чёрно-белая", "palCrimson" to "Рубиновая",
         "palCyan" to "Бирюзовая", "palCoral" to "Коралловая",
+        "scanModalTitle" to "TV Устройства",
+        "scanSearching" to "Поиск устройств ТВ в вашей сети…",
+        "scanTroubles" to "Проблемы с подключением?",
+        "scanTroublesTip" to "Убедитесь, что телефон и ТВ в одной сети Wi-Fi, либо введите IP вручную.",
         StatusState.DISCONNECTED.name to "Не подключено",
         StatusState.ENTER_IP.name to "Сначала введите IP-адрес ТВ",
         StatusState.PAIRING_START.name to "Начинаем сопряжение…",
@@ -507,14 +526,20 @@ private val stringsMap = mapOf(
     "az" to mapOf(
         "tabRemote" to "Pult", "tabConnect" to "Bağlantı", "power" to "Güc",
         "tvIp" to "TV IP Ünvanı", "scanTv" to "Şəbəkədə TV Tap", "settings" to "Ayarlar",
-        "hapticLevel" to "Titrəmə Gücü", "theme" to "Rəng Palitrası", "lang" to "Dil",
+        "hapticLevel" to "Titrəmə Gücü", "wheelSize" to "Orta Düymə Ölçüsü",
+        "theme" to "Rəng Palitrası", "lang" to "Dil",
         "codeHint" to "6 rəqəmli kod", "confirm" to "Təsdiqlə", "connect" to "Qoşul",
         "autoOn" to "Avto Qoşul: Açıq", "autoOff" to "Avto Qoşul: Bağlı",
         "resetPair" to "Cütləşməni Sıfırla", "contactUs" to "Bizimlə Əlaqə",
         "vibOff" to "Bağlı", "vibLight" to "Yüngül", "vibMed" to "Orta", "vibStrong" to "Güclü",
+        "sizeSmall" to "Kiçik", "sizeMedium" to "Orta", "sizeLarge" to "Böyük",
         "palBlue" to "Mavi", "palEmerald" to "Zümrüd", "palPurple" to "Bənövşəyi",
         "palAmber" to "Kəhrəba", "palBw" to "Ağ-Qara", "palCrimson" to "Yaqut",
         "palCyan" to "Firuzəyi", "palCoral" to "Mərcan",
+        "scanModalTitle" to "TV Cihazları",
+        "scanSearching" to "Şəbəkənizdə TV cihazları axtarılır…",
+        "scanTroubles" to "Bağlantı problemləri?",
+        "scanTroublesTip" to "Telefon və TV eyni Wi-Fi şəbəkəsində olmalıdır; tapılmasa IP ünvanını əl ilə daxil edin.",
         StatusState.DISCONNECTED.name to "Qoşulu deyil",
         StatusState.ENTER_IP.name to "Əvvəlcə TV-nin IP ünvanını yaz",
         StatusState.PAIRING_START.name to "Cütləşmə başlayır…",
@@ -537,14 +562,20 @@ private val stringsMap = mapOf(
     "zh" to mapOf(
         "tabRemote" to "遥控器", "tabConnect" to "连接", "power" to "电源",
         "tvIp" to "电视 IP 地址", "scanTv" to "搜索局域网电视", "settings" to "设置",
-        "hapticLevel" to "震动强度", "theme" to "配色方案", "lang" to "语言",
+        "hapticLevel" to "震动强度", "wheelSize" to "中心转盘大小",
+        "theme" to "配色方案", "lang" to "语言",
         "codeHint" to "6 位验证码", "confirm" to "确认", "connect" to "连接",
         "autoOn" to "自动连接：开", "autoOff" to "自动连接：关",
         "resetPair" to "重置配对", "contactUs" to "联系我们",
         "vibOff" to "关闭", "vibLight" to "轻微", "vibMed" to "适中", "vibStrong" to "强烈",
+        "sizeSmall" to "小", "sizeMedium" to "中", "sizeLarge" to "大",
         "palBlue" to "蓝色", "palEmerald" to "祖母绿", "palPurple" to "紫色",
         "palAmber" to "琥珀色", "palBw" to "黑白", "palCrimson" to "深红",
         "palCyan" to "青色", "palCoral" to "珊瑚色",
+        "scanModalTitle" to "电视设备",
+        "scanSearching" to "正在您的网络中搜索电视设备…",
+        "scanTroubles" to "连接遇到问题？",
+        "scanTroublesTip" to "请确保手机和电视处于同一 Wi-Fi 网络且未开启设备隔离，否则请手动输入 IP。",
         StatusState.DISCONNECTED.name to "未连接",
         StatusState.ENTER_IP.name to "请先输入电视 IP 地址",
         StatusState.PAIRING_START.name to "正在开始配对…",
@@ -567,14 +598,20 @@ private val stringsMap = mapOf(
     "es" to mapOf(
         "tabRemote" to "Mando", "tabConnect" to "Conexión", "power" to "Encender",
         "tvIp" to "Dirección IP de TV", "scanTv" to "Buscar TV en red", "settings" to "Ajustes",
-        "hapticLevel" to "Intensidad háptica", "theme" to "Paleta de color", "lang" to "Idioma",
+        "hapticLevel" to "Intensidad háptica", "wheelSize" to "Tamaño central",
+        "theme" to "Paleta de color", "lang" to "Idioma",
         "codeHint" to "Código de 6 dígitos", "confirm" to "Confirmar", "connect" to "Conectar",
         "autoOn" to "Autoconexión: Activada", "autoOff" to "Autoconexión: Desactivada",
         "resetPair" to "Restablecer vínculo", "contactUs" to "Contáctanos",
         "vibOff" to "Apagado", "vibLight" to "Suave", "vibMed" to "Media", "vibStrong" to "Fuerte",
+        "sizeSmall" to "Pequeño", "sizeMedium" to "Mediano", "sizeLarge" to "Grande",
         "palBlue" to "Azul", "palEmerald" to "Esmeralda", "palPurple" to "Morado",
         "palAmber" to "Ámbar", "palBw" to "Blanco y negro", "palCrimson" to "Carmesí",
         "palCyan" to "Cian", "palCoral" to "Coral",
+        "scanModalTitle" to "Dispositivos TV",
+        "scanSearching" to "Buscando dispositivos TV en tu red…",
+        "scanTroubles" to "¿Problemas de conexión?",
+        "scanTroublesTip" to "Conecta móvil y TV al mismo Wi-Fi sin aislamiento de clientes o escribe la IP manualmente.",
         StatusState.DISCONNECTED.name to "Desconectado",
         StatusState.ENTER_IP.name to "Escribe primero la IP del TV",
         StatusState.PAIRING_START.name to "Iniciando vinculación…",
@@ -597,14 +634,20 @@ private val stringsMap = mapOf(
     "ar" to mapOf(
         "tabRemote" to "التحكم", "tabConnect" to "الاتصال", "power" to "الطاقة",
         "tvIp" to "عنوان IP للتلفاز", "scanTv" to "بحث عن تلفاز بالشبكة", "settings" to "الإعدادات",
-        "hapticLevel" to "قوة الاهتزاز", "theme" to "لوحة الألوان", "lang" to "اللغة",
+        "hapticLevel" to "قوة الاهتزاز", "wheelSize" to "حجم القرص الأوسط",
+        "theme" to "لوحة الألوان", "lang" to "اللغة",
         "codeHint" to "رمز من 6 أرقام", "confirm" to "تأكيد", "connect" to "اتصال",
         "autoOn" to "اتصال تلقائي: تشغيل", "autoOff" to "اتصال تلقائي: إيقاف",
         "resetPair" to "إعادة ضبط الإقران", "contactUs" to "تواصل معنا",
         "vibOff" to "إيقاف", "vibLight" to "خفيف", "vibMed" to "متوسط", "vibStrong" to "قوي",
+        "sizeSmall" to "صغير", "sizeMedium" to "متوسط", "sizeLarge" to "كبير",
         "palBlue" to "أزرق", "palEmerald" to "زمردي", "palPurple" to "بنفسجي",
         "palAmber" to "كهرماني", "palBw" to "أبيض وأسود", "palCrimson" to "قرمزي",
         "palCyan" to "سماوي", "palCoral" to "مرجاني",
+        "scanModalTitle" to "أجهزة التلفاز",
+        "scanSearching" to "جارٍ البحث عن أجهزة التلفاز في شبكتك…",
+        "scanTroubles" to "مشاكل في الاتصال؟",
+        "scanTroublesTip" to "تأكد أن الهاتف والتلفاز على نفس شبكة Wi-Fi أو أدخل عنوان IP يدويًا.",
         StatusState.DISCONNECTED.name to "غير متصل",
         StatusState.ENTER_IP.name to "أدخل عنوان IP للتلفاز أولاً",
         StatusState.PAIRING_START.name to "بدء الإقران…",
@@ -627,14 +670,20 @@ private val stringsMap = mapOf(
     "hi" to mapOf(
         "tabRemote" to "रिमोट", "tabConnect" to "कनेक्शन", "power" to "पावर",
         "tvIp" to "टीवी IP पता", "scanTv" to "नेटवर्क में टीवी खोजें", "settings" to "सेटिंग्स",
-        "hapticLevel" to "कंपन तीव्रता", "theme" to "रंग पैलेट", "lang" to "भाषा",
+        "hapticLevel" to "कंपन तीव्रता", "wheelSize" to "बीच के चक्र का आकार",
+        "theme" to "रंग पैलेट", "lang" to "भाषा",
         "codeHint" to "6 अंकों का कोड", "confirm" to "पुष्टि करें", "connect" to "कनेक्ट करें",
         "autoOn" to "ऑटो कनेक्ट: चालू", "autoOff" to "ऑटो कनेक्ट: बंद",
         "resetPair" to "पेयरिंग रीसेट करें", "contactUs" to "संपर्क करें",
         "vibOff" to "बंद", "vibLight" to "हल्का", "vibMed" to "मध्यम", "vibStrong" to "तेज़",
+        "sizeSmall" to "छोटा", "sizeMedium" to "मध्यम", "sizeLarge" to "बड़ा",
         "palBlue" to "नीला", "palEmerald" to "पन्ना", "palPurple" to "बैंगनी",
         "palAmber" to "अंबर", "palBw" to "श्वेत-श्याम", "palCrimson" to "गहरा लाल",
         "palCyan" to "सियान", "palCoral" to "कोरल",
+        "scanModalTitle" to "टीवी डिवाइस",
+        "scanSearching" to "आपके नेटवर्क में टीवी डिवाइस खोजे जा रहे हैं…",
+        "scanTroubles" to "कनेक्शन में समस्या?",
+        "scanTroublesTip" to "फ़ोन और टीवी को एक ही Wi-Fi पर रखें या IP मैन्युअल रूप से दर्ज करें।",
         StatusState.DISCONNECTED.name to "डिस्कनेक्टेड",
         StatusState.ENTER_IP.name to "पहले टीवी का IP पता दर्ज करें",
         StatusState.PAIRING_START.name to "पेयरिंग शुरू हो रही है…",
@@ -663,16 +712,22 @@ class MainActivity : Activity() {
     private var remote: Conn? = null
     @Volatile private var ready = false
     @Volatile private var reconnecting = false
+    @Volatile private var scanToken = 0
     private var pairConn: Conn? = null
     private var pairServerCert: X509Certificate? = null
     private var host = ""
     @Volatile private var hapticStrength = 2 // 0: Kapalı, 1: Hafif, 2: Orta, 3: Güçlü
+    @Volatile private var wheelSizeMode = 1 // 0: Küçük, 1: Orta, 2: Büyük
     @Volatile private var autoConnectEnabled = true
     private var currentLang = "tr"
     private var settingsOpen = false
     private var vibDropdownOpen = false
+    private var sizeDropdownOpen = false
     private var paletteDropdownOpen = false
     private var langDropdownOpen = false
+    private var scanModalOpen = false
+    private var scanInProgress = false
+    private var scanTroublesVisible = false
     private var lastStatusState = StatusState.DISCONNECTED
     private var lastStatusDetail: String? = null
     private var lastStatusDotColor = Color.parseColor("#64748B")
@@ -695,6 +750,12 @@ class MainActivity : Activity() {
         1 to "vibLight",
         2 to "vibMed",
         3 to "vibStrong"
+    )
+
+    private val wheelSizes = listOf(
+        0 to ("sizeSmall" to 216),
+        1 to ("sizeMedium" to 252),
+        2 to ("sizeLarge" to 292)
     )
 
     private val languages = listOf(
@@ -734,7 +795,6 @@ class MainActivity : Activity() {
     private lateinit var settingsCardView: LinearLayout
     private lateinit var tvIpTitleView: TextView
     private lateinit var scanTvBtnView: Button
-    private lateinit var foundTvListView: LinearLayout
     private lateinit var settingsTitleView: TextView
     private lateinit var openSettingsBtnView: Button
     private lateinit var connectBtnView: Button
@@ -751,20 +811,33 @@ class MainActivity : Activity() {
     private lateinit var vibHeaderRow: LinearLayout
     private lateinit var vibHeaderLabel: TextView
     private lateinit var vibHeaderValue: TextView
-    private lateinit var vibHeaderArrow: TextView
     private lateinit var vibOptionsContainer: LinearLayout
+
+    private lateinit var sizeHeaderRow: LinearLayout
+    private lateinit var sizeHeaderLabel: TextView
+    private lateinit var sizeHeaderValue: TextView
+    private lateinit var sizeOptionsContainer: LinearLayout
 
     private lateinit var paletteHeaderRow: LinearLayout
     private lateinit var paletteHeaderLabel: TextView
     private lateinit var paletteHeaderValue: TextView
-    private lateinit var paletteHeaderArrow: TextView
     private lateinit var paletteOptionsContainer: LinearLayout
 
     private lateinit var langHeaderRow: LinearLayout
     private lateinit var langHeaderLabel: TextView
     private lateinit var langHeaderValue: TextView
-    private lateinit var langHeaderArrow: TextView
     private lateinit var langOptionsContainer: LinearLayout
+
+    private lateinit var scanBackdropView: FrameLayout
+    private lateinit var scanDialogCardView: LinearLayout
+    private lateinit var scanIconBadge: TextView
+    private lateinit var scanTitleView: TextView
+    private lateinit var scanCloseBtn: Button
+    private lateinit var scanProgressBar: ProgressBar
+    private lateinit var scanMessageView: TextView
+    private lateinit var scanResultsContainer: LinearLayout
+    private lateinit var scanTroublesBtn: TextView
+    private lateinit var scanTroublesTipView: TextView
 
     private var dp = 1f
     private var sp = 1f
@@ -772,6 +845,7 @@ class MainActivity : Activity() {
     private val navBtns = ArrayList<Button>()
     private val neutralPillBtns = ArrayList<Button>()
     private val vibRows = ArrayList<Pair<Int, LinearLayout>>()
+    private val sizeRows = ArrayList<Pair<Int, LinearLayout>>()
     private val paletteRows = ArrayList<Pair<Int, LinearLayout>>()
     private val langRows = ArrayList<Pair<String, LinearLayout>>()
     private val screens = ArrayList<View>()
@@ -932,6 +1006,13 @@ class MainActivity : Activity() {
         return if (!detail.isNullOrBlank()) "$base: $detail" else base
     }
 
+    private fun applyWheelSize(mode: Int) {
+        wheelSizeMode = mode.coerceIn(0, wheelSizes.lastIndex)
+        val sizeDp = wheelSizes[wheelSizeMode].second.second
+        dpadWheelView.layoutParams = lp(px(sizeDp), px(sizeDp), 0f, 0, 6, 0, 6)
+        dpadWheelView.requestLayout()
+    }
+
     private fun show(i: Int) {
         currentScreen = i
         screens.forEachIndexed { n, sc -> sc.visibility = if (n == i) View.VISIBLE else View.GONE }
@@ -965,6 +1046,30 @@ class MainActivity : Activity() {
             rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) cAccentStroke else cBtnStroke, 16)
             val tv = rowView.getChildAt(0) as? TextView
             tv?.text = t(lvlKey)
+            tv?.setTextColor(if (selected) cText else cSubtext)
+            val mark = rowView.getChildAt(1) as? TextView
+            mark?.text = if (selected) "●" else ""
+            mark?.setTextColor(cAccentStroke)
+        }
+
+        sizeHeaderRow.background = makeCardBg(if (sizeDropdownOpen) cCard else cBtn, if (sizeDropdownOpen) cAccentStroke else cBtnStroke, 16)
+        sizeHeaderLabel.text = t("wheelSize")
+        sizeHeaderLabel.setTextColor(cText)
+        val activeSizeKey = wheelSizes.firstOrNull { it.first == wheelSizeMode }?.second?.first ?: "sizeMedium"
+        sizeHeaderValue.text = t(activeSizeKey)
+        sizeHeaderValue.setTextColor(cAccentStroke)
+        (sizeHeaderRow.tag as? TextView)?.apply {
+            text = if (sizeDropdownOpen) "▲" else "▼"
+            setTextColor(cSubtext)
+        }
+        sizeOptionsContainer.visibility = if (sizeDropdownOpen) View.VISIBLE else View.GONE
+
+        sizeRows.forEach { (mode, rowView) ->
+            val selected = mode == wheelSizeMode
+            val sizeKey = wheelSizes.firstOrNull { it.first == mode }?.second?.first ?: "sizeMedium"
+            rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) cAccentStroke else cBtnStroke, 16)
+            val tv = rowView.getChildAt(0) as? TextView
+            tv?.text = t(sizeKey)
             tv?.setTextColor(if (selected) cText else cSubtext)
             val mark = rowView.getChildAt(1) as? TextView
             mark?.text = if (selected) "●" else ""
@@ -1018,6 +1123,15 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun refreshScanModalStrings() {
+        scanTitleView.text = t("scanModalTitle")
+        scanTroublesBtn.text = t("scanTroubles")
+        scanTroublesTipView.text = t("scanTroublesTip")
+        if (scanInProgress) {
+            scanMessageView.text = t("scanSearching")
+        }
+    }
+
     private fun applyLanguage(lang: String) {
         currentLang = if (stringsMap.containsKey(lang)) lang else "tr"
         if (navBtns.size >= 2) {
@@ -1037,6 +1151,7 @@ class MainActivity : Activity() {
         contactUsBtnView.text = t("contactUs")
         status.text = formatStatus(lastStatusState, lastStatusDetail)
         (statusDot.background as? GradientDrawable)?.setColor(lastStatusDotColor)
+        refreshScanModalStrings()
         refreshDropdowns()
     }
 
@@ -1055,6 +1170,15 @@ class MainActivity : Activity() {
         ipBox.background = makeInputBg()
         codeBox.background = makeInputBg()
 
+        scanDialogCardView.background = makeCardBg(cCard, cBtnStroke, 26)
+        scanIconBadge.setTextColor(cText)
+        scanTitleView.setTextColor(cText)
+        scanCloseBtn.setTextColor(cSubtext)
+        scanMessageView.setTextColor(cSubtext)
+        scanTroublesBtn.setTextColor(cSubtext)
+        scanTroublesTipView.setTextColor(cSubtext)
+        scanTroublesTipView.background = makeCardBg(cSurface, cBtnStroke, 14)
+
         neutralPillBtns.forEach { styleBtn(it, cBtn, cBtnStroke, cText, if (it.text.length <= 2) 21f else 18.5f) }
         styleBtn(powerBtnView, cRedSoft, cRedStroke, cText, 16f)
         styleBtn(scanTvBtnView, cBtn, cBtnStroke, cText, 14.5f, 18)
@@ -1069,6 +1193,134 @@ class MainActivity : Activity() {
         show(currentScreen)
     }
 
+    private fun closeScanModal() {
+        scanToken++
+        scanInProgress = false
+        scanModalOpen = false
+        scanBackdropView.visibility = View.GONE
+    }
+
+    private fun buildScanModal(prefs: android.content.SharedPreferences) {
+        scanIconBadge = TextView(this).apply {
+            text = "🖥"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(20f))
+            layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 10, 0)
+        }
+        scanTitleView = TextView(this).apply {
+            text = t("scanModalTitle")
+            typeface = Typeface.DEFAULT_BOLD
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(18f))
+            layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        scanCloseBtn = Button(this).apply {
+            text = "✕"
+            background = null
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(18f))
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
+            setPadding(px(8), px(4), px(8), px(4))
+            layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            applyPressAnim(this)
+            setOnClickListener {
+                tap(v = this)
+                closeScanModal()
+            }
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 14)
+            addView(scanIconBadge); addView(scanTitleView); addView(scanCloseBtn)
+        }
+
+        scanMessageView = TextView(this).apply {
+            text = t("scanSearching")
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14.5f))
+            setLineSpacing(px(3).toFloat(), 1.1f)
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 14)
+        }
+
+        scanProgressBar = ProgressBar(this).apply {
+            isIndeterminate = true
+            layoutParams = lp(px(36), px(36), 0f, 0, 4, 0, 14)
+        }
+
+        scanResultsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 8)
+        }
+
+        scanTroublesTipView = TextView(this).apply {
+            text = t("scanTroublesTip")
+            visibility = View.GONE
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(12.5f))
+            setPadding(px(12), px(10), px(12), px(10))
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 10)
+        }
+
+        scanTroublesBtn = TextView(this).apply {
+            text = t("scanTroubles")
+            typeface = Typeface.DEFAULT_BOLD
+            isClickable = true; isFocusable = true
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f))
+            setPadding(px(4), px(6), px(4), px(2))
+            layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            applyPressAnim(this)
+            setOnClickListener {
+                tap(v = this)
+                scanTroublesVisible = !scanTroublesVisible
+                scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE
+            }
+        }
+        val footerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 6, 0, 0)
+            addView(scanTroublesBtn)
+        }
+
+        scanDialogCardView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(px(22), px(20), px(22), px(20))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            ).apply {
+                setMargins(px(28), px(24), px(28), px(24))
+            }
+            addView(header)
+            addView(scanMessageView)
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                addView(scanProgressBar)
+            })
+            addView(scanResultsContainer)
+            addView(scanTroublesTipView)
+            addView(footerRow)
+            isClickable = true; isFocusable = true
+        }
+
+        scanBackdropView = FrameLayout(this).apply {
+            visibility = View.GONE
+            setBackgroundColor(Color.parseColor("#B3000000"))
+            isClickable = true; isFocusable = true
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setOnClickListener { closeScanModal() }
+            addView(scanDialogCardView)
+        }
+
+        // Tag reference for adding found TV items cleanly
+        scanResultsContainer.tag = prefs
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1077,6 +1329,7 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences("tv", MODE_PRIVATE)
         val paired = prefs.getBoolean("paired", false)
         hapticStrength = prefs.getInt("haptic_level", if (prefs.getBoolean("haptic", true)) 2 else 0).coerceIn(0, 3)
+        wheelSizeMode = prefs.getInt("wheel_size", 1).coerceIn(0, wheelSizes.lastIndex)
         autoConnectEnabled = prefs.getBoolean("auto_connect", true)
         paletteIndex = prefs.getInt("palette", 0).coerceIn(0, palettes.lastIndex)
         currentLang = prefs.getString("lang", "tr") ?: "tr"
@@ -1127,6 +1380,7 @@ class MainActivity : Activity() {
             layoutParams = lp(px(116), LinearLayout.LayoutParams.MATCH_PARENT)
             setOnClickListener { tap(v = this); sendKey(26) }
         }
+        val initialSize = wheelSizes[wheelSizeMode].second.second
         dpadWheelView = DpadWheelView(this) { zone ->
             tap(v = dpadWheelView)
             when (zone) {
@@ -1137,16 +1391,16 @@ class MainActivity : Activity() {
                 DpadZone.CENTER -> sendKey(23)
                 DpadZone.NONE -> Unit
             }
-        }.apply { layoutParams = lp(px(252), px(252), 0f, 0, 8, 0, 8) }
+        }.apply { layoutParams = lp(px(initialSize), px(initialSize), 0f, 0, 6, 0, 6) }
 
         val remoteScreenView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             visibility = View.GONE; setPadding(px(14), px(6), px(14), px(8))
             addView(row(View(this@MainActivity).apply { layoutParams = lp(0, px(1), 1f) }, powerBtnView).apply {
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(58), 0f, 0, 2, 0, 10)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(58), 0f, 0, 2, 0, 8)
             })
             addView(row(pillKey("🔊+", 24, 1.15f), pillKey("🔇", 164, 0.9f), pillKey("🔊−", 25, 1.15f)).apply {
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 0, 0, 10)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 0, 0, 8)
             })
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
@@ -1183,13 +1437,8 @@ class MainActivity : Activity() {
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 10, 0, 0)
             setOnClickListener {
                 tap(v = this)
-                scanNetworkForTv(prefs)
+                openAndScanNetwork(prefs)
             }
-        }
-        foundTvListView = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            visibility = View.GONE
-            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 8, 0, 0)
         }
         tvIpTitleView = TextView(this).apply {
             text = t("tvIp"); setTextColor(cText); typeface = Typeface.DEFAULT_BOLD
@@ -1203,7 +1452,6 @@ class MainActivity : Activity() {
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             })
             addView(scanTvBtnView)
-            addView(foundTvListView)
             addView(codeRow)
         }
 
@@ -1227,6 +1475,29 @@ class MainActivity : Activity() {
                     refreshDropdowns()
                 }
                 vibRows.add(lvl to r)
+                addView(r)
+            }
+        }
+
+        val sizeHeader = createDropdownHeader {
+            sizeDropdownOpen = !sizeDropdownOpen
+            refreshDropdowns()
+        }
+        sizeHeaderRow = sizeHeader.first
+        sizeHeaderLabel = sizeHeader.second
+        sizeHeaderValue = sizeHeader.third
+        sizeOptionsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
+            wheelSizes.forEach { (mode, _) ->
+                val r = optionRow(t("sizeMedium"), null) {
+                    prefs.edit().putInt("wheel_size", mode).apply()
+                    sizeDropdownOpen = false
+                    applyWheelSize(mode)
+                    refreshDropdowns()
+                }
+                sizeRows.add(mode to r)
                 addView(r)
             }
         }
@@ -1319,6 +1590,8 @@ class MainActivity : Activity() {
             addView(settingsTitleView)
             addView(vibHeaderRow)
             addView(vibOptionsContainer)
+            addView(sizeHeaderRow)
+            addView(sizeOptionsContainer)
             addView(autoConnectBtn)
             addView(paletteHeaderRow)
             addView(paletteOptionsContainer)
@@ -1364,7 +1637,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL; setPadding(px(4), px(26), px(4), px(6))
             addView(topBarView); addView(content); addView(bottomNav)
         }
-        setContentView(rootView)
+
+        buildScanModal(prefs)
+        val shell = FrameLayout(this).apply {
+            addView(rootView)
+            addView(scanBackdropView)
+        }
+        setContentView(shell)
 
         applyPalette(paletteIndex)
         if (paired && ipBox.text.isNotBlank()) {
@@ -1373,6 +1652,16 @@ class MainActivity : Activity() {
         } else {
             show(1)
         }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (scanModalOpen) {
+            closeScanModal()
+            return
+        }
+        @Suppress("DEPRECATION")
+        super.onBackPressed()
     }
 
     private fun openInstagram() {
@@ -1408,29 +1697,70 @@ class MainActivity : Activity() {
         return null
     }
 
-    private fun scanNetworkForTv(prefs: android.content.SharedPreferences) {
+    private fun addFoundTvRow(prefs: android.content.SharedPreferences, ip: String) {
+        val itemBtn = Button(this).apply {
+            text = "🖥  $ip"
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(48), 0f, 0, 0, 0, 8)
+            styleBtn(this, cSurface, cAccentStroke, cText, 14.5f, 16)
+            setOnClickListener {
+                tap(v = this)
+                ipBox.setText(ip)
+                prefs.edit().putString("ip", ip).apply()
+                closeScanModal()
+                if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
+            }
+        }
+        scanResultsContainer.addView(itemBtn)
+        scanResultsContainer.visibility = View.VISIBLE
+    }
+
+    private fun openAndScanNetwork(prefs: android.content.SharedPreferences) {
+        val token = ++scanToken
+        scanModalOpen = true
+        scanTroublesVisible = false
+        scanTroublesTipView.visibility = View.GONE
+        scanResultsContainer.removeAllViews()
+        scanResultsContainer.visibility = View.GONE
+        scanBackdropView.visibility = View.VISIBLE
+
         val prefix = getLocalSubnetPrefix()
         if (prefix == null) {
+            scanInProgress = false
+            scanProgressBar.visibility = View.GONE
+            scanMessageView.text = t(StatusState.SCAN_NO_WIFI.name)
             uiState(StatusState.SCAN_NO_WIFI, cRedStroke)
             return
         }
+
+        scanInProgress = true
+        scanProgressBar.visibility = View.VISIBLE
+        scanMessageView.text = t("scanSearching")
         uiState(StatusState.SCANNING, cAccentStroke)
-        runOnUiThread {
-            foundTvListView.removeAllViews()
-            foundTvListView.visibility = View.GONE
-        }
+
         fastIo.execute {
-            val found = java.util.Collections.synchronizedList(ArrayList<String>())
+            val found = Collections.synchronizedList(ArrayList<String>())
             val latch = CountDownLatch(254)
-            val activeWorkers = AtomicInteger(0)
             val pool = Executors.newFixedThreadPool(24)
 
             for (lastOctet in 1..254) {
+                if (token != scanToken) {
+                    latch.countDown()
+                    continue
+                }
                 pool.execute {
                     try {
-                        val candidate = "$prefix.$lastOctet"
-                        if (isTvPortOpen(candidate, 6466, 220) || isTvPortOpen(candidate, 6467, 220)) {
-                            found.add(candidate)
+                        if (token == scanToken) {
+                            val candidate = "$prefix.$lastOctet"
+                            if (isTvPortOpen(candidate, 6466, 220) || isTvPortOpen(candidate, 6467, 220)) {
+                                if (!found.contains(candidate)) {
+                                    found.add(candidate)
+                                    runOnUiThread {
+                                        if (token == scanToken && scanModalOpen) {
+                                            addFoundTvRow(prefs, candidate)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     } finally {
                         latch.countDown()
@@ -1440,29 +1770,18 @@ class MainActivity : Activity() {
             latch.await(5500, TimeUnit.MILLISECONDS)
             pool.shutdownNow()
 
+            if (token != scanToken) return@execute
+
             val uniqueIps = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
             runOnUiThread {
-                foundTvListView.removeAllViews()
+                if (token != scanToken) return@runOnUiThread
+                scanInProgress = false
+                scanProgressBar.visibility = View.GONE
                 if (uniqueIps.isEmpty()) {
-                    foundTvListView.visibility = View.GONE
+                    scanMessageView.text = t(StatusState.SCAN_NONE.name)
                     uiState(StatusState.SCAN_NONE, cRedStroke)
                 } else {
-                    uniqueIps.forEach { foundIp ->
-                        val itemBtn = Button(this).apply {
-                            text = "📺 $foundIp"
-                            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(46), 0f, 0, 0, 0, 6)
-                            styleBtn(this, cCard, cAccentStroke, cText, 14.5f, 16)
-                            setOnClickListener {
-                                tap(v = this)
-                                ipBox.setText(foundIp)
-                                prefs.edit().putString("ip", foundIp).apply()
-                                foundTvListView.visibility = View.GONE
-                                if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
-                            }
-                        }
-                        foundTvListView.addView(itemBtn)
-                    }
-                    foundTvListView.visibility = View.VISIBLE
+                    scanMessageView.text = "${t(StatusState.SCAN_FOUND.name)} (${uniqueIps.size})"
                     uiState(StatusState.SCAN_FOUND, cGreen, uniqueIps.first())
                 }
             }
@@ -1689,6 +2008,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        scanToken++
         pairConn?.close()
         remote?.close()
         fastIo.shutdownNow()
