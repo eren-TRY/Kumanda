@@ -3,6 +3,7 @@ package com.example.tvkumanda
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Color
@@ -12,7 +13,14 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -32,6 +40,7 @@ import java.io.ByteArrayOutputStream
 import java.io.EOFException
 import java.io.File
 import java.math.BigInteger
+import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.KeyFactory
@@ -44,7 +53,10 @@ import java.security.cert.X509Certificate
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.PKCS8EncodedKeySpec
 import java.util.Date
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.KeyManager
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
@@ -332,6 +344,13 @@ private class DpadWheelView(
         canvas.drawText("OK", cx, cy - okOffsetY, glyphPaint)
     }
 
+    private fun animateTap() {
+        animate().cancel()
+        scaleX = 0.96f
+        scaleY = 0.96f
+        animate().scaleX(1f).scaleY(1f).setDuration(90L).start()
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -339,19 +358,31 @@ private class DpadWheelView(
                 val z = zoneAt(event.x, event.y)
                 if (z != activeZone) {
                     activeZone = z
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN && z != DpadZone.NONE) {
+                        scaleX = 0.96f
+                        scaleY = 0.96f
+                    }
                     invalidate()
                 }
                 return true
             }
             MotionEvent.ACTION_UP -> {
                 val z = zoneAt(event.x, event.y)
-                if (z != DpadZone.NONE) onZoneTap(z)
+                if (z != DpadZone.NONE) {
+                    animateTap()
+                    onZoneTap(z)
+                } else {
+                    scaleX = 1f
+                    scaleY = 1f
+                }
                 activeZone = DpadZone.NONE
                 invalidate()
                 performClick()
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
+                scaleX = 1f
+                scaleY = 1f
                 activeZone = DpadZone.NONE
                 invalidate()
                 return true
@@ -366,11 +397,12 @@ private class DpadWheelView(
 private enum class StatusState {
     DISCONNECTED, ENTER_IP, PAIRING_START, ENTER_CODE, PAIRING_FAILED,
     CODE_LENGTH, CODE_REJECTED, PAIRED_CONNECTING, CONNECTING,
-    CONNECT_FAILED, CONNECTED, LOST, PAIR_RESET, SEND_FAILED
+    CONNECT_FAILED, CONNECTED, LOST, PAIR_RESET, SEND_FAILED,
+    SCANNING, SCAN_NO_WIFI, SCAN_FOUND, SCAN_NONE
 }
 
 private data class ColorPalette(
-    val name: String,
+    val key: String,
     val bg: Int,
     val card: Int,
     val surface: Int,
@@ -384,11 +416,15 @@ private data class ColorPalette(
 private val stringsMap = mapOf(
     "tr" to mapOf(
         "tabRemote" to "Kumanda", "tabConnect" to "Bağlantı", "power" to "Güç",
-        "tvIp" to "TV IP Adresi", "settings" to "Ayarlar", "theme" to "Renk Paleti",
-        "lang" to "Dil", "codeHint" to "6 haneli kod", "confirm" to "Onayla",
-        "connect" to "Bağlan", "hapticOn" to "Titreşim: Açık", "hapticOff" to "Titreşim: Kapalı",
+        "tvIp" to "TV IP Adresi", "scanTv" to "Ağda TV Ara", "settings" to "Ayarlar",
+        "hapticLevel" to "Titreşim Şiddeti", "theme" to "Renk Paleti", "lang" to "Dil",
+        "codeHint" to "6 haneli kod", "confirm" to "Onayla", "connect" to "Bağlan",
         "autoOn" to "Oto Bağlan: Açık", "autoOff" to "Oto Bağlan: Kapalı",
-        "resetPair" to "Eşleştirmeyi Sıfırla",
+        "resetPair" to "Eşleştirmeyi Sıfırla", "contactUs" to "Bize Ulaşın",
+        "vibOff" to "Kapalı", "vibLight" to "Hafif", "vibMed" to "Orta", "vibStrong" to "Güçlü",
+        "palBlue" to "Mavi", "palEmerald" to "Zümrüt", "palPurple" to "Mor",
+        "palAmber" to "Kehribar", "palBw" to "Siyah Beyaz", "palCrimson" to "Yakut",
+        "palCyan" to "Camgöbeği", "palCoral" to "Mercan",
         StatusState.DISCONNECTED.name to "Bağlı değil",
         StatusState.ENTER_IP.name to "Önce TV'nin IP adresini yaz",
         StatusState.PAIRING_START.name to "Eşleştirme başlıyor…",
@@ -402,15 +438,23 @@ private val stringsMap = mapOf(
         StatusState.CONNECTED.name to "Bağlandı",
         StatusState.LOST.name to "Bağlantı koptu",
         StatusState.PAIR_RESET.name to "Eşleştirme sıfırlandı",
-        StatusState.SEND_FAILED.name to "Gönderilemedi"
+        StatusState.SEND_FAILED.name to "Gönderilemedi",
+        StatusState.SCANNING.name to "Ağda TV aranıyor…",
+        StatusState.SCAN_NO_WIFI.name to "Yerel Wi-Fi ağı bulunamadı",
+        StatusState.SCAN_FOUND.name to "TV bulundu",
+        StatusState.SCAN_NONE.name to "Ağda TV bulunamadı"
     ),
     "en" to mapOf(
         "tabRemote" to "Remote", "tabConnect" to "Connection", "power" to "Power",
-        "tvIp" to "TV IP Address", "settings" to "Settings", "theme" to "Color Palette",
-        "lang" to "Language", "codeHint" to "6-digit code", "confirm" to "Confirm",
-        "connect" to "Connect", "hapticOn" to "Haptic: On", "hapticOff" to "Haptic: Off",
+        "tvIp" to "TV IP Address", "scanTv" to "Find TV on Network", "settings" to "Settings",
+        "hapticLevel" to "Haptic Strength", "theme" to "Color Palette", "lang" to "Language",
+        "codeHint" to "6-digit code", "confirm" to "Confirm", "connect" to "Connect",
         "autoOn" to "Auto Connect: On", "autoOff" to "Auto Connect: Off",
-        "resetPair" to "Reset Pairing",
+        "resetPair" to "Reset Pairing", "contactUs" to "Contact Us",
+        "vibOff" to "Off", "vibLight" to "Light", "vibMed" to "Medium", "vibStrong" to "Strong",
+        "palBlue" to "Blue", "palEmerald" to "Emerald", "palPurple" to "Purple",
+        "palAmber" to "Amber", "palBw" to "Black & White", "palCrimson" to "Crimson",
+        "palCyan" to "Cyan", "palCoral" to "Coral",
         StatusState.DISCONNECTED.name to "Disconnected",
         StatusState.ENTER_IP.name to "Enter the TV IP address first",
         StatusState.PAIRING_START.name to "Starting pairing…",
@@ -424,15 +468,23 @@ private val stringsMap = mapOf(
         StatusState.CONNECTED.name to "Connected",
         StatusState.LOST.name to "Connection lost",
         StatusState.PAIR_RESET.name to "Pairing reset",
-        StatusState.SEND_FAILED.name to "Failed to send"
+        StatusState.SEND_FAILED.name to "Failed to send",
+        StatusState.SCANNING.name to "Scanning network for TV…",
+        StatusState.SCAN_NO_WIFI.name to "Local Wi-Fi network not found",
+        StatusState.SCAN_FOUND.name to "TV found",
+        StatusState.SCAN_NONE.name to "No TV found on network"
     ),
     "ru" to mapOf(
         "tabRemote" to "Пульт", "tabConnect" to "Подключение", "power" to "Питание",
-        "tvIp" to "IP-адрес ТВ", "settings" to "Настройки", "theme" to "Палитра цветов",
-        "lang" to "Язык", "codeHint" to "6-значный код", "confirm" to "ОК",
-        "connect" to "Подключить", "hapticOn" to "Вибрация: Вкл", "hapticOff" to "Вибрация: Выкл",
+        "tvIp" to "IP-адрес ТВ", "scanTv" to "Найти ТВ в сети", "settings" to "Настройки",
+        "hapticLevel" to "Сила вибрации", "theme" to "Палитра цветов", "lang" to "Язык",
+        "codeHint" to "6-значный код", "confirm" to "ОК", "connect" to "Подключить",
         "autoOn" to "Автоподкл.: Вкл", "autoOff" to "Автоподкл.: Выкл",
-        "resetPair" to "Сбросить пару",
+        "resetPair" to "Сбросить пару", "contactUs" to "Связаться с нами",
+        "vibOff" to "Выкл", "vibLight" to "Слабая", "vibMed" to "Средняя", "vibStrong" to "Сильная",
+        "palBlue" to "Синяя", "palEmerald" to "Изумруд", "palPurple" to "Фиолетовая",
+        "palAmber" to "Янтарная", "palBw" to "Чёрно-белая", "palCrimson" to "Рубиновая",
+        "palCyan" to "Бирюзовая", "palCoral" to "Коралловая",
         StatusState.DISCONNECTED.name to "Не подключено",
         StatusState.ENTER_IP.name to "Сначала введите IP-адрес ТВ",
         StatusState.PAIRING_START.name to "Начинаем сопряжение…",
@@ -446,15 +498,23 @@ private val stringsMap = mapOf(
         StatusState.CONNECTED.name to "Подключено",
         StatusState.LOST.name to "Соединение потеряно",
         StatusState.PAIR_RESET.name to "Сопряжение сброшено",
-        StatusState.SEND_FAILED.name to "Ошибка отправки"
+        StatusState.SEND_FAILED.name to "Ошибка отправки",
+        StatusState.SCANNING.name to "Поиск ТВ в сети…",
+        StatusState.SCAN_NO_WIFI.name to "Локальная сеть Wi-Fi не найдена",
+        StatusState.SCAN_FOUND.name to "ТВ найден",
+        StatusState.SCAN_NONE.name to "ТВ в сети не найдены"
     ),
     "az" to mapOf(
         "tabRemote" to "Pult", "tabConnect" to "Bağlantı", "power" to "Güc",
-        "tvIp" to "TV IP Ünvanı", "settings" to "Ayarlar", "theme" to "Rəng Palitrası",
-        "lang" to "Dil", "codeHint" to "6 rəqəmli kod", "confirm" to "Təsdiqlə",
-        "connect" to "Qoşul", "hapticOn" to "Titrəmə: Açıq", "hapticOff" to "Titrəmə: Bağlı",
+        "tvIp" to "TV IP Ünvanı", "scanTv" to "Şəbəkədə TV Tap", "settings" to "Ayarlar",
+        "hapticLevel" to "Titrəmə Gücü", "theme" to "Rəng Palitrası", "lang" to "Dil",
+        "codeHint" to "6 rəqəmli kod", "confirm" to "Təsdiqlə", "connect" to "Qoşul",
         "autoOn" to "Avto Qoşul: Açıq", "autoOff" to "Avto Qoşul: Bağlı",
-        "resetPair" to "Cütləşməni Sıfırla",
+        "resetPair" to "Cütləşməni Sıfırla", "contactUs" to "Bizimlə Əlaqə",
+        "vibOff" to "Bağlı", "vibLight" to "Yüngül", "vibMed" to "Orta", "vibStrong" to "Güclü",
+        "palBlue" to "Mavi", "palEmerald" to "Zümrüd", "palPurple" to "Bənövşəyi",
+        "palAmber" to "Kəhrəba", "palBw" to "Ağ-Qara", "palCrimson" to "Yaqut",
+        "palCyan" to "Firuzəyi", "palCoral" to "Mərcan",
         StatusState.DISCONNECTED.name to "Qoşulu deyil",
         StatusState.ENTER_IP.name to "Əvvəlcə TV-nin IP ünvanını yaz",
         StatusState.PAIRING_START.name to "Cütləşmə başlayır…",
@@ -468,7 +528,131 @@ private val stringsMap = mapOf(
         StatusState.CONNECTED.name to "Qoşuldu",
         StatusState.LOST.name to "Bağlantı kəsildi",
         StatusState.PAIR_RESET.name to "Cütləşmə sıfırlandı",
-        StatusState.SEND_FAILED.name to "Göndərilə bilmədi"
+        StatusState.SEND_FAILED.name to "Göndərilə bilmədi",
+        StatusState.SCANNING.name to "Şəbəkədə TV axtarılır…",
+        StatusState.SCAN_NO_WIFI.name to "Yerli Wi-Fi şəbəkəsi tapılmadı",
+        StatusState.SCAN_FOUND.name to "TV tapıldı",
+        StatusState.SCAN_NONE.name to "Şəbəkədə TV tapılmadı"
+    ),
+    "zh" to mapOf(
+        "tabRemote" to "遥控器", "tabConnect" to "连接", "power" to "电源",
+        "tvIp" to "电视 IP 地址", "scanTv" to "搜索局域网电视", "settings" to "设置",
+        "hapticLevel" to "震动强度", "theme" to "配色方案", "lang" to "语言",
+        "codeHint" to "6 位验证码", "confirm" to "确认", "connect" to "连接",
+        "autoOn" to "自动连接：开", "autoOff" to "自动连接：关",
+        "resetPair" to "重置配对", "contactUs" to "联系我们",
+        "vibOff" to "关闭", "vibLight" to "轻微", "vibMed" to "适中", "vibStrong" to "强烈",
+        "palBlue" to "蓝色", "palEmerald" to "祖母绿", "palPurple" to "紫色",
+        "palAmber" to "琥珀色", "palBw" to "黑白", "palCrimson" to "深红",
+        "palCyan" to "青色", "palCoral" to "珊瑚色",
+        StatusState.DISCONNECTED.name to "未连接",
+        StatusState.ENTER_IP.name to "请先输入电视 IP 地址",
+        StatusState.PAIRING_START.name to "正在开始配对…",
+        StatusState.ENTER_CODE.name to "输入电视上的 6 位验证码并点击确认",
+        StatusState.PAIRING_FAILED.name to "配对失败",
+        StatusState.CODE_LENGTH.name to "验证码必须为 6 位",
+        StatusState.CODE_REJECTED.name to "验证码被拒绝",
+        StatusState.PAIRED_CONNECTING.name to "已配对 — 正在连接…",
+        StatusState.CONNECTING.name to "正在连接…",
+        StatusState.CONNECT_FAILED.name to "连接失败",
+        StatusState.CONNECTED.name to "已连接",
+        StatusState.LOST.name to "连接已断开",
+        StatusState.PAIR_RESET.name to "已重置配对",
+        StatusState.SEND_FAILED.name to "发送失败",
+        StatusState.SCANNING.name to "正在搜索电视…",
+        StatusState.SCAN_NO_WIFI.name to "未找到局域网 Wi-Fi",
+        StatusState.SCAN_FOUND.name to "已找到电视",
+        StatusState.SCAN_NONE.name to "网络中未找到电视"
+    ),
+    "es" to mapOf(
+        "tabRemote" to "Mando", "tabConnect" to "Conexión", "power" to "Encender",
+        "tvIp" to "Dirección IP de TV", "scanTv" to "Buscar TV en red", "settings" to "Ajustes",
+        "hapticLevel" to "Intensidad háptica", "theme" to "Paleta de color", "lang" to "Idioma",
+        "codeHint" to "Código de 6 dígitos", "confirm" to "Confirmar", "connect" to "Conectar",
+        "autoOn" to "Autoconexión: Activada", "autoOff" to "Autoconexión: Desactivada",
+        "resetPair" to "Restablecer vínculo", "contactUs" to "Contáctanos",
+        "vibOff" to "Apagado", "vibLight" to "Suave", "vibMed" to "Media", "vibStrong" to "Fuerte",
+        "palBlue" to "Azul", "palEmerald" to "Esmeralda", "palPurple" to "Morado",
+        "palAmber" to "Ámbar", "palBw" to "Blanco y negro", "palCrimson" to "Carmesí",
+        "palCyan" to "Cian", "palCoral" to "Coral",
+        StatusState.DISCONNECTED.name to "Desconectado",
+        StatusState.ENTER_IP.name to "Escribe primero la IP del TV",
+        StatusState.PAIRING_START.name to "Iniciando vinculación…",
+        StatusState.ENTER_CODE.name to "Escribe el código de 6 dígitos en TV y pulsa Confirmar",
+        StatusState.PAIRING_FAILED.name to "Error al vincular",
+        StatusState.CODE_LENGTH.name to "El código debe tener 6 caracteres",
+        StatusState.CODE_REJECTED.name to "Código rechazado",
+        StatusState.PAIRED_CONNECTING.name to "Vinculado — Conectando…",
+        StatusState.CONNECTING.name to "Conectando…",
+        StatusState.CONNECT_FAILED.name to "No se pudo conectar",
+        StatusState.CONNECTED.name to "Conectado",
+        StatusState.LOST.name to "Conexión perdida",
+        StatusState.PAIR_RESET.name to "Vinculación restablecida",
+        StatusState.SEND_FAILED.name to "Error al enviar",
+        StatusState.SCANNING.name to "Buscando TV en la red…",
+        StatusState.SCAN_NO_WIFI.name to "No se encontró red Wi-Fi local",
+        StatusState.SCAN_FOUND.name to "TV encontrado",
+        StatusState.SCAN_NONE.name to "No se encontró ningún TV en la red"
+    ),
+    "ar" to mapOf(
+        "tabRemote" to "التحكم", "tabConnect" to "الاتصال", "power" to "الطاقة",
+        "tvIp" to "عنوان IP للتلفاز", "scanTv" to "بحث عن تلفاز بالشبكة", "settings" to "الإعدادات",
+        "hapticLevel" to "قوة الاهتزاز", "theme" to "لوحة الألوان", "lang" to "اللغة",
+        "codeHint" to "رمز من 6 أرقام", "confirm" to "تأكيد", "connect" to "اتصال",
+        "autoOn" to "اتصال تلقائي: تشغيل", "autoOff" to "اتصال تلقائي: إيقاف",
+        "resetPair" to "إعادة ضبط الإقران", "contactUs" to "تواصل معنا",
+        "vibOff" to "إيقاف", "vibLight" to "خفيف", "vibMed" to "متوسط", "vibStrong" to "قوي",
+        "palBlue" to "أزرق", "palEmerald" to "زمردي", "palPurple" to "بنفسجي",
+        "palAmber" to "كهرماني", "palBw" to "أبيض وأسود", "palCrimson" to "قرمزي",
+        "palCyan" to "سماوي", "palCoral" to "مرجاني",
+        StatusState.DISCONNECTED.name to "غير متصل",
+        StatusState.ENTER_IP.name to "أدخل عنوان IP للتلفاز أولاً",
+        StatusState.PAIRING_START.name to "بدء الإقران…",
+        StatusState.ENTER_CODE.name to "أدخل الرمز المكون من 6 أرقام على التلفاز ثم اضغط تأكيد",
+        StatusState.PAIRING_FAILED.name to "فشل الإقران",
+        StatusState.CODE_LENGTH.name to "يجب أن يتكون الرمز من 6 أحرف",
+        StatusState.CODE_REJECTED.name to "تم رفض الرمز",
+        StatusState.PAIRED_CONNECTING.name to "تم الإقران — جارٍ الاتصال…",
+        StatusState.CONNECTING.name to "جارٍ الاتصال…",
+        StatusState.CONNECT_FAILED.name to "تعذر الاتصال",
+        StatusState.CONNECTED.name to "متصل",
+        StatusState.LOST.name to "انقطع الاتصال",
+        StatusState.PAIR_RESET.name to "تمت إعادة ضبط الإقران",
+        StatusState.SEND_FAILED.name to "تعذر الإرسال",
+        StatusState.SCANNING.name to "جارٍ البحث عن التلفاز في الشبكة…",
+        StatusState.SCAN_NO_WIFI.name to "لم يتم العثور على شبكة Wi-Fi محلية",
+        StatusState.SCAN_FOUND.name to "تم العثور على التلفاز",
+        StatusState.SCAN_NONE.name to "لم يتم العثور على تلفاز في الشبكة"
+    ),
+    "hi" to mapOf(
+        "tabRemote" to "रिमोट", "tabConnect" to "कनेक्शन", "power" to "पावर",
+        "tvIp" to "टीवी IP पता", "scanTv" to "नेटवर्क में टीवी खोजें", "settings" to "सेटिंग्स",
+        "hapticLevel" to "कंपन तीव्रता", "theme" to "रंग पैलेट", "lang" to "भाषा",
+        "codeHint" to "6 अंकों का कोड", "confirm" to "पुष्टि करें", "connect" to "कनेक्ट करें",
+        "autoOn" to "ऑटो कनेक्ट: चालू", "autoOff" to "ऑटो कनेक्ट: बंद",
+        "resetPair" to "पेयरिंग रीसेट करें", "contactUs" to "संपर्क करें",
+        "vibOff" to "बंद", "vibLight" to "हल्का", "vibMed" to "मध्यम", "vibStrong" to "तेज़",
+        "palBlue" to "नीला", "palEmerald" to "पन्ना", "palPurple" to "बैंगनी",
+        "palAmber" to "अंबर", "palBw" to "श्वेत-श्याम", "palCrimson" to "गहरा लाल",
+        "palCyan" to "सियान", "palCoral" to "कोरल",
+        StatusState.DISCONNECTED.name to "डिस्कनेक्टेड",
+        StatusState.ENTER_IP.name to "पहले टीवी का IP पता दर्ज करें",
+        StatusState.PAIRING_START.name to "पेयरिंग शुरू हो रही है…",
+        StatusState.ENTER_CODE.name to "टीवी पर 6 अंकों का कोड दर्ज करें और पुष्टि करें दबाएं",
+        StatusState.PAIRING_FAILED.name to "पेयरिंग विफल रही",
+        StatusState.CODE_LENGTH.name to "कोड 6 अक्षरों का होना चाहिए",
+        StatusState.CODE_REJECTED.name to "कोड अस्वीकार किया गया",
+        StatusState.PAIRED_CONNECTING.name to "पेयर हो गया — कनेक्ट हो रहा है…",
+        StatusState.CONNECTING.name to "कनेक्ट हो रहा है…",
+        StatusState.CONNECT_FAILED.name to "कनेक्ट नहीं हो सका",
+        StatusState.CONNECTED.name to "कनेक्टेड",
+        StatusState.LOST.name to "कनेक्शन टूट गया",
+        StatusState.PAIR_RESET.name to "पेयरिंग रीसेट हो गई",
+        StatusState.SEND_FAILED.name to "भेजा नहीं जा सका",
+        StatusState.SCANNING.name to "नेटवर्क में टीवी खोजा जा रहा है…",
+        StatusState.SCAN_NO_WIFI.name to "लोकल Wi-Fi नेटवर्क नहीं मिला",
+        StatusState.SCAN_FOUND.name to "टीवी मिल गया",
+        StatusState.SCAN_NONE.name to "नेटवर्क में कोई टीवी नहीं मिला"
     )
 )
 
@@ -482,20 +666,46 @@ class MainActivity : Activity() {
     private var pairConn: Conn? = null
     private var pairServerCert: X509Certificate? = null
     private var host = ""
-    @Volatile private var hapticEnabled = true
+    @Volatile private var hapticStrength = 2 // 0: Kapalı, 1: Hafif, 2: Orta, 3: Güçlü
     @Volatile private var autoConnectEnabled = true
     private var currentLang = "tr"
     private var settingsOpen = false
+    private var vibDropdownOpen = false
+    private var paletteDropdownOpen = false
+    private var langDropdownOpen = false
     private var lastStatusState = StatusState.DISCONNECTED
     private var lastStatusDetail: String? = null
     private var lastStatusDotColor = Color.parseColor("#64748B")
 
+    private val instagramUrl = "https://www.instagram.com/erew02?cnvx=MTg4bDEyNnYzZ3dmOA=="
+
     private val palettes = listOf(
-        ColorPalette("Mavi", Color.parseColor("#0B0D12"), Color.parseColor("#141821"), Color.parseColor("#10141C"), Color.parseColor("#1D222E"), Color.parseColor("#2B3242"), Color.parseColor("#2563EB"), Color.parseColor("#60A5FA")),
-        ColorPalette("Zümrüt", Color.parseColor("#09110E"), Color.parseColor("#111F1A"), Color.parseColor("#0D1814"), Color.parseColor("#182B24"), Color.parseColor("#264237"), Color.parseColor("#059669"), Color.parseColor("#34D399")),
-        ColorPalette("Mor", Color.parseColor("#0E0B14"), Color.parseColor("#191424"), Color.parseColor("#13101C"), Color.parseColor("#241D33"), Color.parseColor("#362C4D"), Color.parseColor("#7C3AED"), Color.parseColor("#A78BFA")),
-        ColorPalette("Kehribar", Color.parseColor("#120E09"), Color.parseColor("#201810"), Color.parseColor("#18120C"), Color.parseColor("#2E2216"), Color.parseColor("#453321"), Color.parseColor("#D97706"), Color.parseColor("#FBBF24")),
-        ColorPalette("Siyah Beyaz", Color.parseColor("#000000"), Color.parseColor("#121212"), Color.parseColor("#0A0A0A"), Color.parseColor("#1E1E1E"), Color.parseColor("#4A4A4A"), Color.parseColor("#FFFFFF"), Color.parseColor("#FFFFFF"), Color.parseColor("#000000"))
+        ColorPalette("palBlue", Color.parseColor("#0B0D12"), Color.parseColor("#141821"), Color.parseColor("#10141C"), Color.parseColor("#1D222E"), Color.parseColor("#2B3242"), Color.parseColor("#2563EB"), Color.parseColor("#60A5FA")),
+        ColorPalette("palEmerald", Color.parseColor("#09110E"), Color.parseColor("#111F1A"), Color.parseColor("#0D1814"), Color.parseColor("#182B24"), Color.parseColor("#264237"), Color.parseColor("#059669"), Color.parseColor("#34D399")),
+        ColorPalette("palPurple", Color.parseColor("#0E0B14"), Color.parseColor("#191424"), Color.parseColor("#13101C"), Color.parseColor("#241D33"), Color.parseColor("#362C4D"), Color.parseColor("#7C3AED"), Color.parseColor("#A78BFA")),
+        ColorPalette("palAmber", Color.parseColor("#120E09"), Color.parseColor("#201810"), Color.parseColor("#18120C"), Color.parseColor("#2E2216"), Color.parseColor("#453321"), Color.parseColor("#D97706"), Color.parseColor("#FBBF24")),
+        ColorPalette("palBw", Color.parseColor("#000000"), Color.parseColor("#121212"), Color.parseColor("#0A0A0A"), Color.parseColor("#1E1E1E"), Color.parseColor("#4A4A4A"), Color.parseColor("#FFFFFF"), Color.parseColor("#FFFFFF"), Color.parseColor("#000000")),
+        ColorPalette("palCrimson", Color.parseColor("#13090B"), Color.parseColor("#221115"), Color.parseColor("#190D10"), Color.parseColor("#33181E"), Color.parseColor("#4D232C"), Color.parseColor("#DC2626"), Color.parseColor("#F87171")),
+        ColorPalette("palCyan", Color.parseColor("#081114"), Color.parseColor("#0F1E24"), Color.parseColor("#0B161B"), Color.parseColor("#162B33"), Color.parseColor("#22414D"), Color.parseColor("#0891B2"), Color.parseColor("#22D3EE")),
+        ColorPalette("palCoral", Color.parseColor("#140B0E"), Color.parseColor("#241419"), Color.parseColor("#1A0E12"), Color.parseColor("#341C24"), Color.parseColor("#4D2935"), Color.parseColor("#E11D48"), Color.parseColor("#FB7185"))
+    )
+
+    private val vibLevels = listOf(
+        0 to "vibOff",
+        1 to "vibLight",
+        2 to "vibMed",
+        3 to "vibStrong"
+    )
+
+    private val languages = listOf(
+        "tr" to "Türkçe",
+        "en" to "English",
+        "ru" to "Русский",
+        "az" to "Azərbaycan",
+        "zh" to "中文",
+        "es" to "Español",
+        "ar" to "العربية",
+        "hi" to "हिन्दी"
     )
 
     private var paletteIndex = 0
@@ -523,26 +733,45 @@ class MainActivity : Activity() {
     private lateinit var settingsScrollView: ScrollView
     private lateinit var settingsCardView: LinearLayout
     private lateinit var tvIpTitleView: TextView
+    private lateinit var scanTvBtnView: Button
+    private lateinit var foundTvListView: LinearLayout
     private lateinit var settingsTitleView: TextView
-    private lateinit var themeSectionView: TextView
-    private lateinit var langSectionView: TextView
     private lateinit var openSettingsBtnView: Button
     private lateinit var connectBtnView: Button
     private lateinit var resetPairBtnView: Button
+    private lateinit var contactUsBtnView: Button
     private lateinit var confirmPairBtnView: Button
     private lateinit var statusDot: View
     private lateinit var status: TextView
     private lateinit var ipBox: EditText
     private lateinit var codeBox: EditText
     private lateinit var codeRow: LinearLayout
-    private lateinit var hapticBtn: Button
     private lateinit var autoConnectBtn: Button
+
+    private lateinit var vibHeaderRow: LinearLayout
+    private lateinit var vibHeaderLabel: TextView
+    private lateinit var vibHeaderValue: TextView
+    private lateinit var vibHeaderArrow: TextView
+    private lateinit var vibOptionsContainer: LinearLayout
+
+    private lateinit var paletteHeaderRow: LinearLayout
+    private lateinit var paletteHeaderLabel: TextView
+    private lateinit var paletteHeaderValue: TextView
+    private lateinit var paletteHeaderArrow: TextView
+    private lateinit var paletteOptionsContainer: LinearLayout
+
+    private lateinit var langHeaderRow: LinearLayout
+    private lateinit var langHeaderLabel: TextView
+    private lateinit var langHeaderValue: TextView
+    private lateinit var langHeaderArrow: TextView
+    private lateinit var langOptionsContainer: LinearLayout
 
     private var dp = 1f
     private var sp = 1f
     private var currentScreen = 0
     private val navBtns = ArrayList<Button>()
     private val neutralPillBtns = ArrayList<Button>()
+    private val vibRows = ArrayList<Pair<Int, LinearLayout>>()
     private val paletteRows = ArrayList<Pair<Int, LinearLayout>>()
     private val langRows = ArrayList<Pair<String, LinearLayout>>()
     private val screens = ArrayList<View>()
@@ -555,8 +784,52 @@ class MainActivity : Activity() {
     private fun lp(w: Int, h: Int, weight: Float = 0f, l: Int = 0, top: Int = 0, r: Int = 0, b: Int = 0) =
         LinearLayout.LayoutParams(w, h, weight).apply { setMargins(px(l), px(top), px(r), px(b)) }
 
-    private fun tap(type: Int = HapticFeedbackConstants.VIRTUAL_KEY, v: View? = null) {
-        if (hapticEnabled) v?.performHapticFeedback(type) ?: window.decorView.performHapticFeedback(type)
+    private fun applyPressAnim(v: View) {
+        v.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    view.animate().cancel()
+                    view.scaleX = 0.95f
+                    view.scaleY = 0.95f
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(90L).start()
+                }
+            }
+            false
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun tap(levelOverride: Int? = null, v: View? = null) {
+        val lvl = levelOverride ?: hapticStrength
+        if (lvl <= 0) return
+        val target = v ?: window.decorView
+        val durationMs = when (lvl) {
+            1 -> 14L
+            2 -> 28L
+            else -> 48L
+        }
+        val amplitude = when (lvl) {
+            1 -> 60
+            2 -> 150
+            else -> 255
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val vib = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                vib.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
+            } else {
+                target.performHapticFeedback(
+                    if (lvl >= 3) HapticFeedbackConstants.LONG_PRESS else HapticFeedbackConstants.VIRTUAL_KEY
+                )
+            }
+        } catch (_: Exception) {
+            target.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
     }
 
     private fun makePillBg(fill: Int, stroke: Int, radiusDp: Int = 22): RippleDrawable {
@@ -585,16 +858,47 @@ class MainActivity : Activity() {
         b.typeface = Typeface.DEFAULT_BOLD
         b.isAllCaps = false
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(sizeSp))
-        b.setPadding(px(6), 0, px(6), 0)
+        b.setPadding(px(8), 0, px(8), 0)
         b.minWidth = 0; b.minimumWidth = 0; b.minHeight = 0; b.minimumHeight = 0
+        applyPressAnim(b)
     }
 
-    private fun sectionLabel(key: String, topMargin: Int = 12) = TextView(this).apply {
-        text = t(key)
-        setTextColor(cSubtext)
-        typeface = Typeface.DEFAULT_BOLD
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f))
-        setPadding(px(2), px(topMargin), 0, px(6))
+    private fun createDropdownHeader(
+        onToggle: () -> Unit
+    ): Triple<LinearLayout, TextView, TextView> {
+        lateinit var labelTv: TextView
+        lateinit var valueTv: TextView
+        lateinit var arrowTv: TextView
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            isClickable = true; isFocusable = true
+            setPadding(px(14), px(13), px(14), px(13))
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 8, 0, 4)
+            labelTv = TextView(this@MainActivity).apply {
+                typeface = Typeface.DEFAULT_BOLD
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14f))
+                layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            valueTv = TextView(this@MainActivity).apply {
+                typeface = Typeface.DEFAULT_BOLD
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f))
+                layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 8, 0)
+            }
+            arrowTv = TextView(this@MainActivity).apply {
+                typeface = Typeface.DEFAULT_BOLD
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(12f))
+            }
+            addView(labelTv); addView(valueTv); addView(arrowTv)
+            applyPressAnim(this)
+            setOnClickListener {
+                tap(v = this)
+                onToggle()
+            }
+        }
+        return Triple(row, labelTv, valueTv).also {
+            row.tag = arrowTv
+        }
     }
 
     private fun optionRow(title: String, dotColor: Int?, onClick: () -> Unit) = LinearLayout(this).apply {
@@ -619,7 +923,8 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
             setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13f))
         })
-        setOnClickListener { tap(HapticFeedbackConstants.KEYBOARD_TAP, this); onClick() }
+        applyPressAnim(this)
+        setOnClickListener { tap(v = this); onClick() }
     }
 
     private fun formatStatus(state: StatusState, detail: String?): String {
@@ -641,18 +946,67 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun refreshOptionRows() {
+    private fun refreshDropdowns() {
+        vibHeaderRow.background = makeCardBg(if (vibDropdownOpen) cCard else cBtn, if (vibDropdownOpen) cAccentStroke else cBtnStroke, 16)
+        vibHeaderLabel.text = t("hapticLevel")
+        vibHeaderLabel.setTextColor(cText)
+        val activeVibKey = vibLevels.firstOrNull { it.first == hapticStrength }?.second ?: "vibMed"
+        vibHeaderValue.text = t(activeVibKey)
+        vibHeaderValue.setTextColor(cAccentStroke)
+        (vibHeaderRow.tag as? TextView)?.apply {
+            text = if (vibDropdownOpen) "▲" else "▼"
+            setTextColor(cSubtext)
+        }
+        vibOptionsContainer.visibility = if (vibDropdownOpen) View.VISIBLE else View.GONE
+
+        vibRows.forEach { (lvl, rowView) ->
+            val selected = lvl == hapticStrength
+            val lvlKey = vibLevels.firstOrNull { it.first == lvl }?.second ?: "vibOff"
+            rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) cAccentStroke else cBtnStroke, 16)
+            val tv = rowView.getChildAt(0) as? TextView
+            tv?.text = t(lvlKey)
+            tv?.setTextColor(if (selected) cText else cSubtext)
+            val mark = rowView.getChildAt(1) as? TextView
+            mark?.text = if (selected) "●" else ""
+            mark?.setTextColor(cAccentStroke)
+        }
+
+        paletteHeaderRow.background = makeCardBg(if (paletteDropdownOpen) cCard else cBtn, if (paletteDropdownOpen) cAccentStroke else cBtnStroke, 16)
+        paletteHeaderLabel.text = t("theme")
+        paletteHeaderLabel.setTextColor(cText)
+        val curPal = palettes[paletteIndex.coerceIn(0, palettes.lastIndex)]
+        paletteHeaderValue.text = t(curPal.key)
+        paletteHeaderValue.setTextColor(curPal.accentStroke)
+        (paletteHeaderRow.tag as? TextView)?.apply {
+            text = if (paletteDropdownOpen) "▲" else "▼"
+            setTextColor(cSubtext)
+        }
+        paletteOptionsContainer.visibility = if (paletteDropdownOpen) View.VISIBLE else View.GONE
+
         paletteRows.forEach { (idx, rowView) ->
             val selected = idx == paletteIndex
             val p = palettes[idx]
             rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) p.accentStroke else cBtnStroke, 16)
             val tv = rowView.getChildAt(1) as? TextView
-            tv?.text = p.name
+            tv?.text = t(p.key)
             tv?.setTextColor(if (selected) cText else cSubtext)
             val mark = rowView.getChildAt(2) as? TextView
             mark?.text = if (selected) "●" else ""
             mark?.setTextColor(p.accentStroke)
         }
+
+        langHeaderRow.background = makeCardBg(if (langDropdownOpen) cCard else cBtn, if (langDropdownOpen) cAccentStroke else cBtnStroke, 16)
+        langHeaderLabel.text = t("lang")
+        langHeaderLabel.setTextColor(cText)
+        val curLangLabel = languages.firstOrNull { it.first == currentLang }?.second ?: currentLang
+        langHeaderValue.text = curLangLabel
+        langHeaderValue.setTextColor(cAccentStroke)
+        (langHeaderRow.tag as? TextView)?.apply {
+            text = if (langDropdownOpen) "▲" else "▼"
+            setTextColor(cSubtext)
+        }
+        langOptionsContainer.visibility = if (langDropdownOpen) View.VISIBLE else View.GONE
+
         langRows.forEach { (code, rowView) ->
             val selected = code == currentLang
             rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) cAccentStroke else cBtnStroke, 16)
@@ -672,19 +1026,18 @@ class MainActivity : Activity() {
         }
         powerBtnView.text = t("power")
         tvIpTitleView.text = t("tvIp")
-        openSettingsBtnView.text = t("settings")
+        scanTvBtnView.text = t("scanTv")
+        openSettingsBtnView.text = "⚙ ${t("settings")}"
         settingsTitleView.text = t("settings")
-        themeSectionView.text = t("theme")
-        langSectionView.text = t("lang")
         codeBox.hint = t("codeHint")
         confirmPairBtnView.text = t("confirm")
         connectBtnView.text = t("connect")
-        hapticBtn.text = t(if (hapticEnabled) "hapticOn" else "hapticOff")
         autoConnectBtn.text = t(if (autoConnectEnabled) "autoOn" else "autoOff")
         resetPairBtnView.text = t("resetPair")
+        contactUsBtnView.text = t("contactUs")
         status.text = formatStatus(lastStatusState, lastStatusDetail)
         (statusDot.background as? GradientDrawable)?.setColor(lastStatusDotColor)
-        refreshOptionRows()
+        refreshDropdowns()
     }
 
     private fun applyPalette(index: Int) {
@@ -702,14 +1055,15 @@ class MainActivity : Activity() {
         ipBox.background = makeInputBg()
         codeBox.background = makeInputBg()
 
-        neutralPillBtns.forEach { styleBtn(it, cBtn, cBtnStroke, cText, if (it.text.length <= 2) 19f else 17.5f) }
-        styleBtn(powerBtnView, cRedSoft, cRedStroke, cText, 15.5f)
-        styleBtn(openSettingsBtnView, if (settingsOpen) cAccent else cBtn, if (settingsOpen) cAccentStroke else cBtnStroke, if (settingsOpen) cAccentText else cText, 15.5f, 18)
+        neutralPillBtns.forEach { styleBtn(it, cBtn, cBtnStroke, cText, if (it.text.length <= 2) 21f else 18.5f) }
+        styleBtn(powerBtnView, cRedSoft, cRedStroke, cText, 16f)
+        styleBtn(scanTvBtnView, cBtn, cBtnStroke, cText, 14.5f, 18)
+        styleBtn(openSettingsBtnView, if (settingsOpen) cAccent else cBtn, if (settingsOpen) cAccentStroke else cBtnStroke, if (settingsOpen) cAccentText else cText, 15f, 18)
         styleBtn(connectBtnView, cAccent, cAccentStroke, cAccentText, 16f, 18)
         styleBtn(confirmPairBtnView, cAccent, cAccentStroke, cAccentText, 15f, 18)
-        styleBtn(resetPairBtnView, cRedSoft, cRedStroke, cText, 14f, 16)
-        styleBtn(hapticBtn, if (hapticEnabled) cBtn else cCard, cBtnStroke, if (hapticEnabled) cText else cSubtext, 14f, 16)
         styleBtn(autoConnectBtn, if (autoConnectEnabled) cBtn else cCard, cBtnStroke, if (autoConnectEnabled) cText else cSubtext, 14f, 16)
+        styleBtn(resetPairBtnView, cRedSoft, cRedStroke, cText, 14f, 16)
+        styleBtn(contactUsBtnView, cBtn, cAccentStroke, cText, 14.5f, 16)
 
         applyLanguage(currentLang)
         show(currentScreen)
@@ -722,7 +1076,7 @@ class MainActivity : Activity() {
         sp = resources.displayMetrics.scaledDensity
         val prefs = getSharedPreferences("tv", MODE_PRIVATE)
         val paired = prefs.getBoolean("paired", false)
-        hapticEnabled = prefs.getBoolean("haptic", true)
+        hapticStrength = prefs.getInt("haptic_level", if (prefs.getBoolean("haptic", true)) 2 else 0).coerceIn(0, 3)
         autoConnectEnabled = prefs.getBoolean("auto_connect", true)
         paletteIndex = prefs.getInt("palette", 0).coerceIn(0, palettes.lastIndex)
         currentLang = prefs.getString("lang", "tr") ?: "tr"
@@ -750,8 +1104,8 @@ class MainActivity : Activity() {
         }
         confirmPairBtnView = Button(this).apply {
             text = t("confirm")
-            layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(52))
-            setOnClickListener { tap(HapticFeedbackConstants.KEYBOARD_TAP, this); finishPairing(codeBox.text.toString()) }
+            layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(54))
+            setOnClickListener { tap(v = this); finishPairing(codeBox.text.toString()) }
         }
         codeRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -770,11 +1124,11 @@ class MainActivity : Activity() {
         }
         powerBtnView = Button(this).apply {
             text = t("power")
-            layoutParams = lp(px(110), LinearLayout.LayoutParams.MATCH_PARENT)
-            setOnClickListener { tap(HapticFeedbackConstants.VIRTUAL_KEY, this); sendKey(26) }
+            layoutParams = lp(px(116), LinearLayout.LayoutParams.MATCH_PARENT)
+            setOnClickListener { tap(v = this); sendKey(26) }
         }
         dpadWheelView = DpadWheelView(this) { zone ->
-            tap(HapticFeedbackConstants.VIRTUAL_KEY, dpadWheelView)
+            tap(v = dpadWheelView)
             when (zone) {
                 DpadZone.UP -> sendKey(19)
                 DpadZone.RIGHT -> sendKey(22)
@@ -783,16 +1137,16 @@ class MainActivity : Activity() {
                 DpadZone.CENTER -> sendKey(23)
                 DpadZone.NONE -> Unit
             }
-        }.apply { layoutParams = lp(px(250), px(250), 0f, 0, 8, 0, 8) }
+        }.apply { layoutParams = lp(px(252), px(252), 0f, 0, 8, 0, 8) }
 
         val remoteScreenView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             visibility = View.GONE; setPadding(px(14), px(6), px(14), px(8))
             addView(row(View(this@MainActivity).apply { layoutParams = lp(0, px(1), 1f) }, powerBtnView).apply {
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(52), 0f, 0, 2, 0, 10)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(58), 0f, 0, 2, 0, 10)
             })
             addView(row(pillKey("🔊+", 24, 1.15f), pillKey("🔇", 164, 0.9f), pillKey("🔊−", 25, 1.15f)).apply {
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(54), 0f, 0, 0, 0, 10)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 0, 0, 10)
             })
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
@@ -800,29 +1154,42 @@ class MainActivity : Activity() {
                 addView(dpadWheelView)
             })
             addView(row(pillKey("↩", 4), pillKey("⌂", 3), pillKey("⚙", 176)).apply {
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(54), 0f, 0, 8, 0, 2)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 8, 0, 2)
             })
         }
         screens.add(remoteScreenView)
 
         connectBtnView = Button(this).apply {
             text = t("connect")
-            layoutParams = lp(0, px(54), 1f, 0, 0, 6, 0)
+            layoutParams = lp(0, px(58), 1f, 0, 0, 6, 0)
             setOnClickListener {
-                tap(HapticFeedbackConstants.KEYBOARD_TAP, this)
+                tap(v = this)
                 prefs.edit().putString("ip", ipBox.text.toString().trim()).apply()
                 if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
             }
         }
         openSettingsBtnView = Button(this).apply {
-            text = t("settings")
-            layoutParams = lp(0, px(54), 1f, 6, 0, 0, 0)
+            text = "⚙ ${t("settings")}"
+            layoutParams = lp(0, px(58), 1f, 6, 0, 0, 0)
             setOnClickListener {
-                tap(HapticFeedbackConstants.KEYBOARD_TAP, this)
+                tap(v = this)
                 settingsOpen = !settingsOpen
                 settingsScrollView.visibility = if (settingsOpen) View.VISIBLE else View.GONE
-                styleBtn(this, if (settingsOpen) cAccent else cBtn, if (settingsOpen) cAccentStroke else cBtnStroke, if (settingsOpen) cAccentText else cText, 15.5f, 18)
+                styleBtn(this, if (settingsOpen) cAccent else cBtn, if (settingsOpen) cAccentStroke else cBtnStroke, if (settingsOpen) cAccentText else cText, 15f, 18)
             }
+        }
+        scanTvBtnView = Button(this).apply {
+            text = t("scanTv")
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 10, 0, 0)
+            setOnClickListener {
+                tap(v = this)
+                scanNetworkForTv(prefs)
+            }
+        }
+        foundTvListView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 8, 0, 0)
         }
         tvIpTitleView = TextView(this).apply {
             text = t("tvIp"); setTextColor(cText); typeface = Typeface.DEFAULT_BOLD
@@ -835,36 +1202,96 @@ class MainActivity : Activity() {
             addView(row(connectBtnView, openSettingsBtnView).apply {
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             })
+            addView(scanTvBtnView)
+            addView(foundTvListView)
             addView(codeRow)
         }
 
-        hapticBtn = Button(this).apply {
-            text = t(if (hapticEnabled) "hapticOn" else "hapticOff")
-            layoutParams = lp(0, px(48), 1f, 0, 0, 6, 0)
-            setOnClickListener {
-                hapticEnabled = !hapticEnabled
-                prefs.edit().putBoolean("haptic", hapticEnabled).apply()
-                text = t(if (hapticEnabled) "hapticOn" else "hapticOff")
-                styleBtn(this, if (hapticEnabled) cBtn else cCard, cBtnStroke, if (hapticEnabled) cText else cSubtext, 14f, 16)
-                tap(HapticFeedbackConstants.KEYBOARD_TAP, this)
+        val vibHeader = createDropdownHeader {
+            vibDropdownOpen = !vibDropdownOpen
+            refreshDropdowns()
+        }
+        vibHeaderRow = vibHeader.first
+        vibHeaderLabel = vibHeader.second
+        vibHeaderValue = vibHeader.third
+        vibOptionsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
+            vibLevels.forEach { (lvl, _) ->
+                val r = optionRow(t("vibOff"), null) {
+                    hapticStrength = lvl
+                    prefs.edit().putInt("haptic_level", lvl).putBoolean("haptic", lvl > 0).apply()
+                    vibDropdownOpen = false
+                    tap(levelOverride = lvl, v = this)
+                    refreshDropdowns()
+                }
+                vibRows.add(lvl to r)
+                addView(r)
             }
         }
+
         autoConnectBtn = Button(this).apply {
             text = t(if (autoConnectEnabled) "autoOn" else "autoOff")
-            layoutParams = lp(0, px(48), 1f, 6, 0, 0, 0)
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 8, 0, 4)
             setOnClickListener {
-                tap(HapticFeedbackConstants.KEYBOARD_TAP, this)
+                tap(v = this)
                 autoConnectEnabled = !autoConnectEnabled
                 prefs.edit().putBoolean("auto_connect", autoConnectEnabled).apply()
                 text = t(if (autoConnectEnabled) "autoOn" else "autoOff")
                 styleBtn(this, if (autoConnectEnabled) cBtn else cCard, cBtnStroke, if (autoConnectEnabled) cText else cSubtext, 14f, 16)
             }
         }
+
+        val palHeader = createDropdownHeader {
+            paletteDropdownOpen = !paletteDropdownOpen
+            refreshDropdowns()
+        }
+        paletteHeaderRow = palHeader.first
+        paletteHeaderLabel = palHeader.second
+        paletteHeaderValue = palHeader.third
+        paletteOptionsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
+            palettes.forEachIndexed { idx, p ->
+                val r = optionRow(t(p.key), p.accent) {
+                    prefs.edit().putInt("palette", idx).apply()
+                    paletteDropdownOpen = false
+                    applyPalette(idx)
+                }
+                paletteRows.add(idx to r)
+                addView(r)
+            }
+        }
+
+        val langHeader = createDropdownHeader {
+            langDropdownOpen = !langDropdownOpen
+            refreshDropdowns()
+        }
+        langHeaderRow = langHeader.first
+        langHeaderLabel = langHeader.second
+        langHeaderValue = langHeader.third
+        langOptionsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
+            languages.forEach { (code, label) ->
+                val r = optionRow(label, null) {
+                    prefs.edit().putString("lang", code).apply()
+                    langDropdownOpen = false
+                    applyLanguage(code)
+                }
+                langRows.add(code to r)
+                addView(r)
+            }
+        }
+
         resetPairBtnView = Button(this).apply {
             text = t("resetPair")
-            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(48), 0f, 0, 14, 0, 0)
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 12, 0, 0)
             setOnClickListener {
-                tap(HapticFeedbackConstants.KEYBOARD_TAP, this)
+                tap(v = this)
                 prefs.edit().putBoolean("paired", false).apply()
                 pairConn?.close(); pairConn = null
                 remote?.close(); remote = null
@@ -872,36 +1299,33 @@ class MainActivity : Activity() {
                 uiState(StatusState.PAIR_RESET, cMuted)
             }
         }
+
+        contactUsBtnView = Button(this).apply {
+            text = t("contactUs")
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 8, 0, 0)
+            setOnClickListener {
+                tap(v = this)
+                openInstagram()
+            }
+        }
+
         settingsTitleView = TextView(this).apply {
             text = t("settings"); setTextColor(cText); typeface = Typeface.DEFAULT_BOLD
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(17.5f)); setPadding(px(2), 0, 0, px(10))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(17.5f)); setPadding(px(2), 0, 0, px(6))
         }
-        themeSectionView = sectionLabel("theme")
-        langSectionView = sectionLabel("lang")
 
         settingsCardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(px(16), px(16), px(16), px(16))
             addView(settingsTitleView)
-            addView(row(hapticBtn, autoConnectBtn).apply {
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            })
-            addView(themeSectionView)
-            palettes.forEachIndexed { idx, p ->
-                val r = optionRow(p.name, p.accent) {
-                    prefs.edit().putInt("palette", idx).apply()
-                    applyPalette(idx)
-                }
-                paletteRows.add(idx to r); addView(r)
-            }
-            addView(langSectionView)
-            listOf("tr" to "Türkçe", "en" to "English", "ru" to "Русский", "az" to "Azərbaycan").forEach { (code, label) ->
-                val r = optionRow(label, null) {
-                    prefs.edit().putString("lang", code).apply()
-                    applyLanguage(code)
-                }
-                langRows.add(code to r); addView(r)
-            }
+            addView(vibHeaderRow)
+            addView(vibOptionsContainer)
+            addView(autoConnectBtn)
+            addView(paletteHeaderRow)
+            addView(paletteOptionsContainer)
+            addView(langHeaderRow)
+            addView(langOptionsContainer)
             addView(resetPairBtnView)
+            addView(contactUsBtnView)
         }
 
         settingsScrollView = ScrollView(this).apply {
@@ -951,14 +1375,120 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun openInstagram() {
+        try {
+            val appIntent = Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl)).apply {
+                setPackage("com.instagram.android")
+            }
+            startActivity(appIntent)
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl)))
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun getLocalSubnetPrefix(): String? {
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val net = cm.activeNetwork ?: return null
+            val lp: LinkProperties = cm.getLinkProperties(net) ?: return null
+            for (linkAddr in lp.linkAddresses) {
+                val addr = linkAddr.address
+                if (addr is Inet4Address && !addr.isLoopbackAddress) {
+                    val parts = addr.hostAddress?.split(".") ?: continue
+                    if (parts.size == 4) {
+                        return "${parts[0]}.${parts[1]}.${parts[2]}"
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return null
+    }
+
+    private fun scanNetworkForTv(prefs: android.content.SharedPreferences) {
+        val prefix = getLocalSubnetPrefix()
+        if (prefix == null) {
+            uiState(StatusState.SCAN_NO_WIFI, cRedStroke)
+            return
+        }
+        uiState(StatusState.SCANNING, cAccentStroke)
+        runOnUiThread {
+            foundTvListView.removeAllViews()
+            foundTvListView.visibility = View.GONE
+        }
+        fastIo.execute {
+            val found = java.util.Collections.synchronizedList(ArrayList<String>())
+            val latch = CountDownLatch(254)
+            val activeWorkers = AtomicInteger(0)
+            val pool = Executors.newFixedThreadPool(24)
+
+            for (lastOctet in 1..254) {
+                pool.execute {
+                    try {
+                        val candidate = "$prefix.$lastOctet"
+                        if (isTvPortOpen(candidate, 6466, 220) || isTvPortOpen(candidate, 6467, 220)) {
+                            found.add(candidate)
+                        }
+                    } finally {
+                        latch.countDown()
+                    }
+                }
+            }
+            latch.await(5500, TimeUnit.MILLISECONDS)
+            pool.shutdownNow()
+
+            val uniqueIps = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
+            runOnUiThread {
+                foundTvListView.removeAllViews()
+                if (uniqueIps.isEmpty()) {
+                    foundTvListView.visibility = View.GONE
+                    uiState(StatusState.SCAN_NONE, cRedStroke)
+                } else {
+                    uniqueIps.forEach { foundIp ->
+                        val itemBtn = Button(this).apply {
+                            text = "📺 $foundIp"
+                            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(46), 0f, 0, 0, 0, 6)
+                            styleBtn(this, cCard, cAccentStroke, cText, 14.5f, 16)
+                            setOnClickListener {
+                                tap(v = this)
+                                ipBox.setText(foundIp)
+                                prefs.edit().putString("ip", foundIp).apply()
+                                foundTvListView.visibility = View.GONE
+                                if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
+                            }
+                        }
+                        foundTvListView.addView(itemBtn)
+                    }
+                    foundTvListView.visibility = View.VISIBLE
+                    uiState(StatusState.SCAN_FOUND, cGreen, uniqueIps.first())
+                }
+            }
+        }
+    }
+
+    private fun isTvPortOpen(ip: String, port: Int, timeoutMs: Int): Boolean {
+        return try {
+            Socket().use { s ->
+                s.connect(InetSocketAddress(ip, port), timeoutMs)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun nav(label: String, i: Int) = Button(this).apply {
         text = label
         typeface = Typeface.DEFAULT_BOLD; isAllCaps = false
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14f))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14.5f))
         setPadding(px(6), px(2), px(6), px(2))
-        layoutParams = lp(0, px(54), 1f, 5, 2, 5, 4)
+        layoutParams = lp(0, px(56), 1f, 5, 2, 5, 4)
         navBtns.add(this)
-        setOnClickListener { tap(HapticFeedbackConstants.KEYBOARD_TAP, this); show(i) }
+        applyPressAnim(this)
+        setOnClickListener { tap(v = this); show(i) }
     }
 
     private fun row(vararg views: View) = LinearLayout(this).apply {
@@ -970,7 +1500,7 @@ class MainActivity : Activity() {
         text = label
         layoutParams = lp(0, LinearLayout.LayoutParams.MATCH_PARENT, weight, 5, 0, 5, 0)
         neutralPillBtns.add(this)
-        setOnClickListener { tap(HapticFeedbackConstants.VIRTUAL_KEY, this); sendKey(code) }
+        setOnClickListener { tap(v = this); sendKey(code) }
     }
 
     private fun uiState(state: StatusState, dotColor: Int, detail: String? = null) = runOnUiThread {
