@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.tvkumanda"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -21,8 +21,19 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/versions/**",
+                "META-INF/MANIFEST.MF",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*"
+            )
+        }
+    }
 }
 
 dependencies {
-    implementation("dev.mobile:dadb:1.2.10")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
 }
