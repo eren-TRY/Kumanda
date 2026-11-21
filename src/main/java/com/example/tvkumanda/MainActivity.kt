@@ -252,9 +252,14 @@ private class DpadWheelView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
-        val side = if (h > 0) min(w, h) else w
-        val spec = MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY)
-        super.onMeasure(spec, spec)
+        val side = when {
+            w > 0 && h > 0 -> min(w, h)
+            w > 0 -> w
+            h > 0 -> h
+            else -> (240 * resources.displayMetrics.density).toInt()
+        }
+        val exact = MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY)
+        setMeasuredDimension(exact, exact)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -868,7 +873,7 @@ class MainActivity : Activity() {
     private fun t(key: String): String =
         stringsMap[currentLang]?.get(key) ?: stringsMap.getValue("tr").getValue(key)
 
-    private fun px(v: Int) = (v * dp).toInt()
+    private fun px(v: Int) = (v * dp).toInt().coerceAtLeast(1)
     private fun scaledSp(v: Float) = v * (sp / dp).coerceIn(0.85f, 1.3f)
     private fun lp(w: Int, h: Int, weight: Float = 0f, l: Int = 0, top: Int = 0, r: Int = 0, b: Int = 0) =
         LinearLayout.LayoutParams(w, h, weight).apply { setMargins(px(l), px(top), px(r), px(b)) }
@@ -1044,8 +1049,15 @@ class MainActivity : Activity() {
     private fun applyWheelSize(mode: Int) {
         wheelSizeMode = mode.coerceIn(0, wheelSizes.lastIndex)
         val sizeDp = wheelSizes[wheelSizeMode].second.second
-        dpadWheelView.layoutParams = lp(px(sizeDp), px(sizeDp), 0f, 0, 6, 0, 6)
-        dpadWheelView.requestLayout()
+        val p = px(sizeDp)
+        val params = dpadWheelView.layoutParams as? LinearLayout.LayoutParams
+        if (params != null) {
+            params.width = p
+            params.height = p
+            dpadWheelView.layoutParams = params
+        } else {
+            dpadWheelView.layoutParams = lp(p, p, 0f, 0, 6, 0, 6)
+        }
     }
 
     private fun updateRemoteHeaderIndicator() {
@@ -1056,19 +1068,22 @@ class MainActivity : Activity() {
     }
 
     private fun show(i: Int) {
-        currentScreen = i
-        screens.forEachIndexed { n, sc -> sc.visibility = if (n == i) View.VISIBLE else View.GONE }
-        if (i != 1 && settingsOpen) {
+        val target = i.coerceIn(0, (screens.size - 1).coerceAtLeast(0))
+        currentScreen = target
+        for (n in screens.indices) {
+            screens[n].visibility = if (n == target) View.VISIBLE else View.GONE
+        }
+        if (target != 1 && settingsOpen) {
             settingsOpen = false
             settingsScrollView.visibility = View.GONE
         }
-        if (i == 0) {
+        if (target == 0) {
             updateRemoteHeaderIndicator()
         }
-        navBtns.forEachIndexed { n, b ->
-            val active = n == i
-            b.background = makePillBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke)
-            b.setTextColor(if (active) cAccentText else cSubtext)
+        for (n in navBtns.indices) {
+            val active = n == target
+            navBtns[n].background = makePillBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke)
+            navBtns[n].setTextColor(if (active) cAccentText else cSubtext)
         }
     }
 
@@ -1085,7 +1100,7 @@ class MainActivity : Activity() {
         }
         vibOptionsContainer.visibility = if (vibDropdownOpen) View.VISIBLE else View.GONE
 
-        vibRows.forEach { (lvl, rowView) ->
+        for ((lvl, rowView) in vibRows) {
             val selected = lvl == hapticStrength
             val lvlKey = vibLevels.firstOrNull { it.first == lvl }?.second ?: "vibOff"
             rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) cAccentStroke else cBtnStroke, 16)
@@ -1109,7 +1124,7 @@ class MainActivity : Activity() {
         }
         sizeOptionsContainer.visibility = if (sizeDropdownOpen) View.VISIBLE else View.GONE
 
-        sizeRows.forEach { (mode, rowView) ->
+        for ((mode, rowView) in sizeRows) {
             val selected = mode == wheelSizeMode
             val sizeKey = wheelSizes.firstOrNull { it.first == mode }?.second?.first ?: "sizeMedium"
             rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) cAccentStroke else cBtnStroke, 16)
@@ -1133,7 +1148,7 @@ class MainActivity : Activity() {
         }
         paletteOptionsContainer.visibility = if (paletteDropdownOpen) View.VISIBLE else View.GONE
 
-        paletteRows.forEach { (idx, rowView) ->
+        for ((idx, rowView) in paletteRows) {
             val selected = idx == paletteIndex
             val p = palettes[idx]
             rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) p.accentStroke else cBtnStroke, 16)
@@ -1157,7 +1172,7 @@ class MainActivity : Activity() {
         }
         langOptionsContainer.visibility = if (langDropdownOpen) View.VISIBLE else View.GONE
 
-        langRows.forEach { (code, rowView) ->
+        for ((code, rowView) in langRows) {
             val selected = code == currentLang
             rowView.background = makeCardBg(if (selected) cCard else cBtn, if (selected) cAccentStroke else cBtnStroke, 16)
             val tv = rowView.getChildAt(0) as? TextView
@@ -1180,8 +1195,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun applyLanguage(lang: String) {
-        currentLang = if (stringsMap.containsKey(lang)) lang else "tr"
+    private fun applyTextsAndState() {
         if (navBtns.size >= 2) {
             navBtns[0].text = t("tabRemote")
             navBtns[1].text = t("tabConnect")
@@ -1204,7 +1218,12 @@ class MainActivity : Activity() {
         refreshDropdowns()
     }
 
-    private fun applyPalette(index: Int) {
+    private fun applyLanguage(lang: String) {
+        currentLang = if (stringsMap.containsKey(lang)) lang else "tr"
+        applyTextsAndState()
+    }
+
+    private fun applyPalette(index: Int, switchTab: Boolean = false) {
         val p = palettes[index.coerceIn(0, palettes.lastIndex)]
         paletteIndex = index
         cBg = p.bg; cCard = p.card; cSurface = p.surface
@@ -1226,7 +1245,9 @@ class MainActivity : Activity() {
         remoteHeaderTvName.setTextColor(cText)
         styleCircleBtn(powerBtnView, cRedSoft, cRedStroke, cRedStroke, 20f)
         styleCircleBtn(remoteHeaderSettingsBtn, cBtn, cBtnStroke, cText, 18f)
-        roundActionBtns.forEach { styleCircleBtn(it, cBtn, cBtnStroke, cText, 19f) }
+        for (btn in roundActionBtns) {
+            styleCircleBtn(btn, cBtn, cBtnStroke, cText, 19f)
+        }
 
         scanDialogCardView.background = makeCardBg(cCard, cBtnStroke, 26)
         scanIconBadge.setTextColor(cText)
@@ -1245,8 +1266,16 @@ class MainActivity : Activity() {
         styleBtn(resetPairBtnView, cRedSoft, cRedStroke, cText, 14f, 16)
         styleBtn(contactUsBtnView, cBtn, cAccentStroke, cText, 14.5f, 16)
 
-        applyLanguage(currentLang)
-        show(currentScreen)
+        applyTextsAndState()
+        if (switchTab) {
+            show(currentScreen)
+        } else {
+            for (n in navBtns.indices) {
+                val active = n == currentScreen
+                navBtns[n].background = makePillBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke)
+                navBtns[n].setTextColor(if (active) cAccentText else cSubtext)
+            }
+        }
     }
 
     private fun closeScanModal() {
@@ -1400,7 +1429,8 @@ class MainActivity : Activity() {
             wheelSizeMode = prefs.getInt("wheel_size", 1).coerceIn(0, wheelSizes.lastIndex)
             autoConnectEnabled = prefs.getBoolean("auto_connect", true)
             paletteIndex = prefs.getInt("palette", 0).coerceIn(0, palettes.lastIndex)
-            currentLang = prefs.getString("lang", "tr") ?: "tr"
+            val savedLang = prefs.getString("lang", "tr") ?: "tr"
+            currentLang = if (stringsMap.containsKey(savedLang)) savedLang else "tr"
             lastStatusState = if (paired) StatusState.DISCONNECTED else StatusState.ENTER_IP
             lastStatusDotColor = cMuted
 
@@ -1587,7 +1617,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
-                vibLevels.forEach { (lvl, _) ->
+                for ((lvl, _) in vibLevels) {
                     val r = optionRow(t("vibOff"), null) {
                         hapticStrength = lvl
                         prefs.edit().putInt("haptic_level", lvl).putBoolean("haptic", lvl > 0).apply()
@@ -1611,7 +1641,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
-                wheelSizes.forEach { (mode, _) ->
+                for ((mode, _) in wheelSizes) {
                     val r = optionRow(t("sizeMedium"), null) {
                         prefs.edit().putInt("wheel_size", mode).apply()
                         sizeDropdownOpen = false
@@ -1646,11 +1676,12 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
-                palettes.forEachIndexed { idx, p ->
+                for (idx in palettes.indices) {
+                    val p = palettes[idx]
                     val r = optionRow(t(p.key), p.accent) {
                         prefs.edit().putInt("palette", idx).apply()
                         paletteDropdownOpen = false
-                        applyPalette(idx)
+                        applyPalette(idx, switchTab = false)
                     }
                     paletteRows.add(idx to r)
                     addView(r)
@@ -1668,7 +1699,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
-                languages.forEach { (code, label) ->
+                for ((code, label) in languages) {
                     val r = optionRow(label, null) {
                         prefs.edit().putString("lang", code).apply()
                         langDropdownOpen = false
@@ -1750,7 +1781,9 @@ class MainActivity : Activity() {
 
             val content = FrameLayout(this).apply {
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-                screens.forEach { addView(it, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)) }
+                for (sc in screens) {
+                    addView(sc, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                }
             }
 
             val bottomNav = row(nav(t("tabRemote"), 0), nav(t("tabConnect"), 1)).apply {
@@ -1769,16 +1802,15 @@ class MainActivity : Activity() {
             }
             setContentView(shell)
 
-            applyPalette(paletteIndex)
-            if (paired && ipBox.text.isNotBlank()) {
-                show(0)
-                if (autoConnectEnabled) connectClicked()
-            } else {
-                show(1)
+            currentScreen = if (paired && ipBox.text.isNotBlank()) 0 else 1
+            applyPalette(paletteIndex, switchTab = true)
+            if (currentScreen == 0 && autoConnectEnabled) {
+                connectClicked()
             }
         } catch (e: Throwable) {
+            val topFrames = e.stackTrace.take(6).joinToString("\n") { "at ${it.className}.${it.methodName}(${it.lineNumber})" }
             setContentView(TextView(this).apply {
-                text = "Açılış hatası:\n${e.javaClass.simpleName}: ${e.message}"
+                text = "Açılış hatası:\n${e.javaClass.simpleName}: ${e.message}\n\n$topFrames"
                 setTextColor(Color.WHITE)
                 setBackgroundColor(Color.BLACK)
                 setPadding(36, 64, 36, 36)
@@ -1904,7 +1936,7 @@ class MainActivity : Activity() {
             scanResultsContainer.visibility = View.GONE
             return
         }
-        scannedIps.forEach { ip ->
+        for (ip in scannedIps) {
             scanResultsContainer.addView(buildFoundTvCard(prefs, ip))
         }
         scanResultsContainer.visibility = View.VISIBLE
@@ -2015,7 +2047,7 @@ class MainActivity : Activity() {
 
     private fun row(vararg views: View) = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-        views.forEach { addView(it) }
+        for (v in views) addView(v)
     }
 
     private fun roundActionKey(label: String, code: Int, sizeDp: Int = 52) = Button(this).apply {
