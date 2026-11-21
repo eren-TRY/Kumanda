@@ -446,7 +446,7 @@ private val releaseNotesMap = mapOf(
         ReleaseNote(
             "v1.4",
             listOf(
-                "Üst tuşlar, yön tekerleği ve en alttaki Geri / Ana Ekran butonları büyütülüp alt kısma yerleştirildi."
+                "Üst tuşlar, yön tekerleği ve alt Geri / Ana Ekran butonları düzenlendi."
             )
         ),
         ReleaseNote(
@@ -466,7 +466,7 @@ private val releaseNotesMap = mapOf(
         ReleaseNote(
             "v1.4",
             listOf(
-                "Enlarged remote buttons and moved Back and Home to the bottom."
+                "Adjusted remote buttons and bottom Back and Home controls."
             )
         ),
         ReleaseNote(
@@ -1098,10 +1098,10 @@ class MainActivity : Activity() {
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(102), 0f, 0, 6, 0, 6)
-                addView(roundIconKey(IconKind.BACK, 96) { sendKey(4) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(44), px(1)) })
-                addView(roundIconKey(IconKind.HOME, 96) { sendKey(3) })
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 4, 0, 4)
+                addView(roundIconKey(IconKind.BACK, 56) { sendKey(4) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(32), px(1)) })
+                addView(roundIconKey(IconKind.HOME, 56) { sendKey(3) })
             }
 
             screens.add(LinearLayout(this).apply {
@@ -1480,11 +1480,12 @@ class MainActivity : Activity() {
     }
 
     private fun openTls(h: String, port: Int, id: Identity, readTimeoutMs: Int): Conn {
-        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null) }
+        val ctx = SSLContext.getInstance("TLSv1.2").apply { init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null) }
         val s = (ctx.socketFactory.createSocket() as SSLSocket).apply {
+            enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
             tcpNoDelay = true
             soTimeout = readTimeoutMs
-            connect(InetSocketAddress(h, port), 4000)
+            connect(InetSocketAddress(h, port), 3500)
             startHandshake()
         }
         return Conn(s)
@@ -1503,19 +1504,20 @@ class MainActivity : Activity() {
     private fun startPairing() {
         val h = ipBox.text.toString().trim()
         if (!isValidIpv4(h)) { uiState(StatusState.ENTER_IP, cRedStroke); return }
-        host = h; uiState(StatusState.PAIRING_START, cAccentStroke)
+        host = h
+        val oldPair = pairConn
+        pairConn = null
+        fastIo.execute { oldPair?.close() }
+        uiState(StatusState.PAIRING_START, cAccentStroke)
         fastIo.execute {
             try {
-                pairConn?.close()
-                pairConn = null
-                val c = openTls(h, 6467, identity(), 25000)
+                val c = openTls(h, 6467, identity(), 8000)
                 pairServerCert = c.sock.session.peerCertificates[0] as X509Certificate
-                c.send(outer(10, Pb.str(1, "atvremote") + Pb.str(2, "Android TV Remote"))); expect(c, 11)
-                c.send(outer(20, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(3, 1))); expect(c, 20)
-                c.send(outer(30, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(2, 1))); expect(c, 31)
+                c.send(Pb.int(1, 2) + Pb.bytes(10, Pb.str(1, "atvremote") + Pb.str(2, "Android TV Remote"))); expect(c, 11)
+                c.send(Pb.int(1, 2) + Pb.bytes(20, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(3, 1))); expect(c, 20)
+                c.send(Pb.int(1, 2) + Pb.bytes(30, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(2, 1))); expect(c, 31)
                 pairConn = c; runOnUiThread { codeRow.visibility = View.VISIBLE }; uiState(StatusState.ENTER_CODE, cAccentStroke)
             } catch (e: Exception) {
-                pairConn?.close()
                 pairConn = null
                 uiState(StatusState.PAIRING_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName)
             }
