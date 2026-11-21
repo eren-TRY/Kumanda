@@ -558,6 +558,22 @@ class MainActivity : Activity() {
     private lateinit var scanTroublesBtn: TextView; private lateinit var scanTroublesTipView: TextView
 
     private var dp = 1f; private var sp = 1f; private var currentScreen = 0
+    private var step = "başlangıç"
+
+    private fun findCycle(root: View): String? {
+        val path = ArrayList<View>()
+        fun walk(v: View): String? {
+            fun nm(x: View) = x.javaClass.simpleName + "#" + System.identityHashCode(x)
+            if (path.any { it === v }) return "DÖNGÜ: " + path.joinToString(" > ") { nm(it) } + " > " + nm(v)
+            if (path.size > 60) return "ÇOK DERİN: " + path.takeLast(5).joinToString(" > ") { nm(it) }
+            path.add(v)
+            if (v is ViewGroup) for (i in 0 until v.childCount) walk(v.getChildAt(i))?.let { return it }
+            path.removeAt(path.size - 1)
+            return null
+        }
+        return walk(root)
+    }
+
     private val navBtns = ArrayList<Button>(); private val roundActionBtns = ArrayList<Button>()
     private val vibRows = ArrayList<Pair<Int, LinearLayout>>(); private val sizeRows = ArrayList<Pair<Int, LinearLayout>>()
     private val paletteRows = ArrayList<Pair<Int, LinearLayout>>(); private val langRows = ArrayList<Pair<String, LinearLayout>>()
@@ -840,6 +856,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
+            step = "başlangıç"
             dp = resources.displayMetrics.density.coerceAtLeast(0.75f)
             sp = resources.displayMetrics.scaledDensity.coerceAtLeast(0.75f)
             val prefs = getSharedPreferences("tv", MODE_PRIVATE)
@@ -990,14 +1007,22 @@ class MainActivity : Activity() {
                 addView(rootView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                 addView(scanBackdropView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             }
+
+            step = "ağaç kontrolü"
+            findCycle(shell)?.let { throw IllegalStateException(it) }
+            step = "setContentView"
             setContentView(shell)
+            step = "applyPalette"
 
             currentScreen = if (paired && ipBox.text.isNotBlank()) 0 else 1
             applyPalette(paletteIndex, switchTab = true)
+            step = "connectClicked"
             if (currentScreen == 0 && autoConnectEnabled) connectClicked()
         } catch (e: Throwable) {
-            val topFrames = e.stackTrace.take(6).joinToString("\n") { "at ${it.className}.${it.methodName}(${it.lineNumber})" }
-            setContentView(TextView(this).apply { text = "Açılış hatası:\n${e.javaClass.simpleName}: ${e.message}\n\n$topFrames"; setTextColor(Color.WHITE); setBackgroundColor(Color.BLACK); setPadding(36, 64, 36, 36) })
+            setContentView(TextView(this).apply {
+                text = "Açılış hatası [adım: $step]\n${e.javaClass.simpleName}: ${e.message}"
+                setTextColor(Color.WHITE); setBackgroundColor(Color.BLACK); setPadding(36, 64, 36, 36); textSize = 12f
+            })
         }
     }
 
