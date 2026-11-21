@@ -559,13 +559,13 @@ class MainActivity : Activity() {
     private var identity: Identity? = null
     @Volatile private var remote: Conn? = null
     @Volatile private var ready = false
-    @Volatile private var reconnecting = false
     @Volatile private var manualDisconnect = false
     @Volatile private var scanToken = 0
     @Volatile private var pairConn: Conn? = null
     @Volatile private var pairServerCert: X509Certificate? = null
     @Volatile private var host = ""
     @Volatile private var connectedHost: String? = null
+    @Volatile private var lastConnectAttemptMs = 0L
     @Volatile private var hapticStrength = 2
     @Volatile private var wheelSizeMode = 1
     @Volatile private var autoConnectEnabled = true
@@ -924,7 +924,9 @@ class MainActivity : Activity() {
         styleBtn(contactUsBtnView, cBtn, cAccentStroke, cText, 14.5f, 16)
 
         applyTextsAndState()
-        if (switchTab) show(currentScreen)
+        if (switchTab) {
+            show(currentScreen)
+        }
     }
 
     private fun setScanBusy(busy: Boolean) {
@@ -1085,7 +1087,7 @@ class MainActivity : Activity() {
                 text = formatStatus(lastStatusState, null)
                 setTextColor(cSubtext)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13f))
-                maxLines = 3
+                maxLines = 4
                 setLineSpacing(px(2).toFloat(), 1.1f)
                 layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
@@ -1300,6 +1302,7 @@ class MainActivity : Activity() {
             val bottomNav = row(nav(t("tabRemote"), 0), nav(t("tabConnect"), 1)).apply { setPadding(px(8), px(2), px(8), px(4)) }
             this@MainActivity.rootView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(px(4), px(26), px(4), px(6)); addView(topBarView); addView(content); addView(bottomNav) }
 
+            step = "pencere katmanları"
             buildScanModal(prefs)
             buildContactModal()
             val shell = FrameLayout(this)
@@ -1471,7 +1474,7 @@ class MainActivity : Activity() {
                         } finally { latch.countDown() }
                     }
                 }
-                latch.await(6500, TimeUnit.MILLISECONDS)
+                latch.await(7500, TimeUnit.MILLISECONDS)
             } finally {
                 pool.shutdownNow()
             }
@@ -1569,9 +1572,9 @@ class MainActivity : Activity() {
                 val c = openTls(h, 6467, identity(), 12000)
                 val cert = c.sock.session.peerCertificates.firstOrNull() as? X509Certificate
                     ?: throw IllegalStateException("TV sertifikası alınamadı")
-                c.send(Pb.int(1, 2) + Pb.bytes(10, Pb.str(1, "atvremote") + Pb.str(2, "Android TV Remote"))); expect(c, 11)
-                c.send(Pb.int(1, 2) + Pb.bytes(20, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(3, 1))); expect(c, 20)
-                c.send(Pb.int(1, 2) + Pb.bytes(30, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(2, 1))); expect(c, 31)
+                c.send(outer(10, Pb.str(1, "atvremote") + Pb.str(2, "Android TV Remote"))); expect(c, 11)
+                c.send(outer(20, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(3, 1))); expect(c, 20)
+                c.send(outer(30, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(2, 1))); expect(c, 31)
                 synchronized(pairLock) {
                     pairConn = c
                     pairServerCert = cert
@@ -1660,6 +1663,13 @@ class MainActivity : Activity() {
             Thread.sleep(15)
             waited += 15
         }
+        if (!ready) {
+            val cur = remote
+            remote = null
+            connectedHost = null
+            cur?.close()
+            throw IllegalStateException("TV hazır sinyali göndermedi")
+        }
     }
 
     private fun configureReply(): ByteArray {
@@ -1698,7 +1708,7 @@ class MainActivity : Activity() {
         if (effectiveHost.isNotBlank() && host.isBlank()) host = effectiveHost
         val msg = Pb.bytes(10, Pb.int(1, code) + Pb.int(2, 3))
         val c = remote
-        if (c != null) {
+        if (c != null && ready) {
             try {
                 c.send(msg)
                 return
@@ -1709,10 +1719,19 @@ class MainActivity : Activity() {
         if (!isValidIpv4(effectiveHost)) throw IllegalStateException(t(StatusState.ENTER_IP.name))
         synchronized(connectLock) {
             if (remote == null || !ready) {
+                val now = System.currentTimeMillis()
+                if (now - lastConnectAttemptMs < 2500L) {
+                    throw IllegalStateException("Bağlantı kurulamıyor, tekrar deneyin")
+                }
+                lastConnectAttemptMs = now
                 connectRemote()
             }
         }
-        (remote ?: throw IllegalStateException(t(StatusState.CONNECT_FAILED.name))).send(msg)
+        val active = remote
+        if (active == null || !ready) {
+            throw IllegalStateException(t(StatusState.CONNECT_FAILED.name))
+        }
+        active.send(msg)
     }
 
     private fun sendKey(code: Int) = fastIo.execute {
