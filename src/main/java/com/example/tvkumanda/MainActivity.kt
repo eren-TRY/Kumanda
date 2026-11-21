@@ -1004,14 +1004,16 @@ class MainActivity : Activity() {
         catch (_: Exception) { try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl))) } catch (_: Exception) {} }
     }
 
-    private fun getLocalSubnetPrefix(): String? = try {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val net = cm.activeNetwork ?: return null
-        cm.getLinkProperties(net)?.linkAddresses?.firstNotNullOfOrNull { linkAddr ->
-            val addr = linkAddr.address
-            if (addr is Inet4Address && !addr.isLoopbackAddress) addr.hostAddress?.split(".")?.takeIf { it.size == 4 }?.let { "${it[0]}.${it[1]}.${it[2]}" } else null
-        }
-    } catch (_: Exception) { null }
+    private fun getLocalSubnetPrefix(): String? {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val net = cm.activeNetwork ?: return null
+            cm.getLinkProperties(net)?.linkAddresses?.firstNotNullOfOrNull { linkAddr ->
+                val addr = linkAddr.address
+                if (addr is Inet4Address && !addr.isLoopbackAddress) addr.hostAddress?.split(".")?.takeIf { it.size == 4 }?.let { "${it[0]}.${it[1]}.${it[2]}" } else null
+            }
+        } catch (_: Exception) { null }
+    }
 
     private fun buildFoundTvCard(prefs: android.content.SharedPreferences, ip: String): LinearLayout {
         val isDeviceConnected = (ready && remote != null && connectedHost == ip)
