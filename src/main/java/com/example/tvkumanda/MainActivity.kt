@@ -789,7 +789,10 @@ class MainActivity : Activity() {
             text = t("scanSearching"); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14.5f)); setLineSpacing(px(3).toFloat(), 1.1f)
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 14)
         }
-        scanProgressBar = ProgressBar(this).apply { isIndeterminate = true; layoutParams = lp(px(36), px(36), 0f, 0, 4, 0, 14) }
+        scanProgressBar = ProgressBar(this).apply {
+            isIndeterminate = true
+            layoutParams = lp(px(36), px(36), 0f, 0, 4, 0, 14).apply { gravity = Gravity.CENTER_HORIZONTAL }
+        }
         scanResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 8); tag = prefs
@@ -807,8 +810,7 @@ class MainActivity : Activity() {
         scanDialogCardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(px(20), px(20), px(20), px(20))
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply { setMargins(px(24), px(24), px(24), px(24)) }
-            addView(header); addView(scanMessageView)
-            addView(scanProgressBar.also { (it.layoutParams as? LinearLayout.LayoutParams)?.gravity = Gravity.CENTER_HORIZONTAL })
+            addView(header); addView(scanMessageView); addView(scanProgressBar)
             addView(scanResultsContainer); addView(scanTroublesTipView)
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL
@@ -870,7 +872,7 @@ class MainActivity : Activity() {
             dpadWheelView = DpadWheelView(this) { zone ->
                 tap(v = dpadWheelView)
                 when (zone) { DpadZone.UP -> sendKey(19); DpadZone.RIGHT -> sendKey(22); DpadZone.DOWN -> sendKey(20); DpadZone.LEFT -> sendKey(21); DpadZone.CENTER -> sendKey(23); DpadZone.NONE -> Unit }
-            }.apply { layoutParams = lp(px(initialSize), px(initialSize), 0f, 0, 6, 0, 6) }
+            }.apply { layoutParams = lp(px(initialSize), px(initialSize), 1f, 0, 6, 0, 6) }
 
             val remoteHeaderRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(54), 0f, 0, 2, 0, 10); addView(powerBtnView); addView(remoteHeaderDot); addView(remoteHeaderTvName); addView(remoteHeaderSettingsBtn) }
             val volumeRow = LinearLayout(this).apply {
@@ -886,7 +888,7 @@ class MainActivity : Activity() {
             }
             screens.add(LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; visibility = View.GONE; setPadding(px(14), px(6), px(14), px(8))
-                addView(remoteHeaderRow); addView(volumeRow); addView(dpadWheelView.also { (it.layoutParams as? LinearLayout.LayoutParams)?.weight = 1f }); addView(bottomKeysRow)
+                addView(remoteHeaderRow); addView(volumeRow); addView(dpadWheelView); addView(bottomKeysRow)
             })
 
             connectBtnView = Button(this).apply {
@@ -904,11 +906,9 @@ class MainActivity : Activity() {
                 addView(tvIpTitleView); addView(ipBox); addView(row(connectBtnView, openSettingsBtnView).apply { layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT) }); addView(scanTvBtnView); addView(codeRow)
             }
 
-            fun makeDropdownContainer(rowsOut: MutableList<Pair<Any, LinearLayout>>? = null) = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL; visibility = View.GONE; layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
-                @Suppress("UNCHECKED_CAST")
-                val target = rowsOut as? MutableList<Pair<Any, LinearLayout>>
-                if (target == null) Unit
+            fun makeDropdownContainer() = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; visibility = View.GONE
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
             }
 
             val (vh, vl, vv) = createDropdownHeader { vibDropdownOpen = !vibDropdownOpen; refreshDropdowns() }
@@ -924,7 +924,7 @@ class MainActivity : Activity() {
             sizeHeaderRow = sh; sizeHeaderLabel = sl; sizeHeaderValue = sv
             sizeOptionsContainer = makeDropdownContainer().apply {
                 for ((mode, _) in wheelSizes) {
-                    val r = optionRow(t("sizeMedium"), null) { wheelSizeMode = mode; prefs.edit().putInt("wheel_size", mode).apply(); sizeDropdownOpen = false; val p = px(wheelSizes[mode].second.second); dpadWheelView.layoutParams = lp(p, p, 0f, 0, 6, 0, 6); refreshDropdowns() }
+                    val r = optionRow(t("sizeMedium"), null) { wheelSizeMode = mode; prefs.edit().putInt("wheel_size", mode).apply(); sizeDropdownOpen = false; val p = px(wheelSizes[mode].second.second); dpadWheelView.layoutParams = lp(p, p, 1f, 0, 6, 0, 6); refreshDropdowns() }
                     sizeRows.add(mode to r); addView(r)
                 }
             }
