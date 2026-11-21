@@ -141,7 +141,6 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     private var pressedSliceFill = Color.parseColor("#2D3648")
     private var centerFill = Color.parseColor("#E2E8F0")
     private var centerStroke = Color.parseColor("#94A3B8")
-    private var centerTextColor = Color.parseColor("#0F172A")
     private var arrowColor = Color.parseColor("#F8FAFC")
     private var activeZone = DpadZone.NONE
     private val outerRect = RectF()
@@ -155,16 +154,12 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
-    private val okPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
-        typeface = Typeface.DEFAULT_BOLD
-    }
 
-    fun applyColors(sliceFill: Int, sliceStroke: Int, centerFill: Int, centerStroke: Int, centerTextColor: Int, arrowColor: Int) {
+    fun applyColors(sliceFill: Int, sliceStroke: Int, centerFill: Int, centerStroke: Int, @Suppress("UNUSED_PARAMETER") centerTextColor: Int, arrowColor: Int) {
         this.sliceFill = sliceFill; this.sliceStroke = sliceStroke
         this.pressedSliceFill = lighten(sliceFill, 1.24f)
         this.centerFill = centerFill; this.centerStroke = centerStroke
-        this.centerTextColor = centerTextColor; this.arrowColor = arrowColor
+        this.arrowColor = arrowColor
         invalidate()
     }
 
@@ -176,7 +171,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec); val h = MeasureSpec.getSize(heightMeasureSpec)
-        val side = when { w > 0 && h > 0 -> min(w, h); w > 0 -> w; h > 0 -> h; else -> (260 * resources.displayMetrics.density).toInt() }
+        val side = when { w > 0 && h > 0 -> min(w, h); w > 0 -> w; h > 0 -> h; else -> (326 * resources.displayMetrics.density).toInt() }
         val exact = MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY)
         setMeasuredDimension(exact, exact)
     }
@@ -184,7 +179,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w <= 0 || h <= 0) return
-        val cx = w / 2f; val cy = h / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.32f
+        val cx = w / 2f; val cy = h / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.30f
         outerRect.set(cx - outerR, cy - outerR, cx + outerR, cy + outerR)
         innerRect.set(cx - innerR, cy - innerR, cx + innerR, cy + innerR)
         val starts = floatArrayOf(-45f, 45f, 135f, 225f)
@@ -194,7 +189,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     }
 
     private fun zoneAt(x: Float, y: Float): DpadZone {
-        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.32f
+        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.30f
         val dist = hypot((x - cx).toDouble(), (y - cy).toDouble())
         if (dist > outerR) return DpadZone.NONE
         if (dist <= innerR) return DpadZone.CENTER
@@ -218,17 +213,17 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.32f
+        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.30f
         strokePaint.strokeWidth = maxOf(2f, outerR * 0.014f); strokePaint.color = sliceStroke
         val zones = arrayOf(DpadZone.RIGHT, DpadZone.DOWN, DpadZone.LEFT, DpadZone.UP)
         for (i in 0 until 4) {
             fillPaint.color = if (activeZone == zones[i]) pressedSliceFill else sliceFill
             canvas.drawPath(slicePaths[i], fillPaint); canvas.drawPath(slicePaths[i], strokePaint)
         }
-        val midR = (outerR + innerR) * 0.535f
+        val midR = (outerR + innerR) * 0.54f
         arrowPaint.color = arrowColor
-        arrowPaint.strokeWidth = maxOf(2.8f, outerR * 0.024f)
-        val arm = outerR * 0.14f
+        arrowPaint.strokeWidth = maxOf(3.2f, outerR * 0.028f)
+        val arm = outerR * 0.15f
         for (deg in listOf(0.0, 90.0, 180.0, 270.0)) {
             val rad = Math.toRadians(deg - 90.0)
             drawChevron(canvas, cx + (midR * cos(rad)).toFloat(), cy + (midR * sin(rad)).toFloat(), arm, deg)
@@ -236,8 +231,6 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
         fillPaint.color = if (activeZone == DpadZone.CENTER) lighten(centerFill, 0.9f) else centerFill
         strokePaint.color = centerStroke
         canvas.drawCircle(cx, cy, innerR, fillPaint); canvas.drawCircle(cx, cy, innerR, strokePaint)
-        okPaint.color = centerTextColor; okPaint.textSize = innerR * 0.46f
-        canvas.drawText("OK", cx, cy - (okPaint.descent() + okPaint.ascent()) / 2f, okPaint)
     }
 
     private fun animateTap() { animate().cancel(); scaleX = 0.95f; scaleY = 0.95f; animate().scaleX(1f).scaleY(1f).setDuration(85L).start() }
@@ -344,11 +337,11 @@ private class RemoteIconButton(
         val u = s * 0.28f
         strokePaint.color = iconColor
         fillPaint.color = iconColor
-        strokePaint.strokeWidth = maxOf(2.6f, s * 0.055f)
+        strokePaint.strokeWidth = maxOf(2.8f, s * 0.058f)
 
         when (kind) {
             IconKind.POWER -> {
-                val r = s * 0.26f
+                val r = s * 0.27f
                 rect.set(cx - r, cy - r + r * 0.14f, cx + r, cy + r + r * 0.14f)
                 canvas.drawArc(rect, -58f, 296f, false, strokePaint)
                 canvas.drawLine(cx, cy - r * 0.35f, cx, cy + r * 0.12f, strokePaint)
@@ -373,18 +366,28 @@ private class RemoteIconButton(
                 canvas.drawArc(rect, -42f, 84f, false, strokePaint)
             }
             IconKind.BACK -> {
-                val a = u * 0.95f
-                canvas.drawLine(cx - a * 0.8f, cy, cx + a * 0.8f, cy, strokePaint)
-                canvas.drawLine(cx - a * 0.8f, cy, cx - a * 0.15f, cy - a * 0.65f, strokePaint)
-                canvas.drawLine(cx - a * 0.8f, cy, cx - a * 0.15f, cy + a * 0.65f, strokePaint)
+                val a = u * 1.05f
+                canvas.drawLine(cx - a * 0.85f, cy, cx + a * 0.85f, cy, strokePaint)
+                canvas.drawLine(cx - a * 0.85f, cy, cx - a * 0.15f, cy - a * 0.72f, strokePaint)
+                canvas.drawLine(cx - a * 0.85f, cy, cx - a * 0.15f, cy + a * 0.72f, strokePaint)
             }
             IconKind.HOME -> {
-                val a = u * 0.92f
-                canvas.drawLine(cx - a * 0.85f, cy - a * 0.05f, cx, cy - a * 0.85f, strokePaint)
-                canvas.drawLine(cx + a * 0.85f, cy - a * 0.05f, cx, cy - a * 0.85f, strokePaint)
-                canvas.drawLine(cx - a * 0.6f, cy - a * 0.2f, cx - a * 0.6f, cy + a * 0.72f, strokePaint)
-                canvas.drawLine(cx + a * 0.6f, cy - a * 0.2f, cx + a * 0.6f, cy + a * 0.72f, strokePaint)
-                canvas.drawLine(cx - a * 0.6f, cy + a * 0.72f, cx + a * 0.6f, cy + a * 0.72f, strokePaint)
+                val a = u * 1.02f
+                val roofPath = Path().apply {
+                    moveTo(cx, cy - a * 0.92f)
+                    lineTo(cx - a * 0.92f, cy - a * 0.05f)
+                    lineTo(cx - a * 0.62f, cy - a * 0.05f)
+                    lineTo(cx - a * 0.62f, cy + a * 0.82f)
+                    lineTo(cx - a * 0.22f, cy + a * 0.82f)
+                    lineTo(cx - a * 0.22f, cy + a * 0.25f)
+                    lineTo(cx + a * 0.22f, cy + a * 0.25f)
+                    lineTo(cx + a * 0.22f, cy + a * 0.82f)
+                    lineTo(cx + a * 0.62f, cy + a * 0.82f)
+                    lineTo(cx + a * 0.62f, cy - a * 0.05f)
+                    lineTo(cx + a * 0.92f, cy - a * 0.05f)
+                    close()
+                }
+                canvas.drawPath(roofPath, fillPaint)
             }
             IconKind.IOS_SETTINGS -> {
                 drawIosGear(canvas, cx, cy, u * 1.05f)
@@ -435,9 +438,9 @@ private val releaseNotesMap = mapOf(
         ReleaseNote(
             "v1.5",
             listOf(
-                "iPhone tarzı ayarlar dişlisi çizildi ve alt kısmın sol tarafına konumlandırıldı.",
-                "Bize Ulaşın butonuna basıldığında açılan seçenek menüsü ve Instagram seçeneği eklendi.",
-                "IP doğrulama, hata detayları ve ağ taraması için ek alt ağ yedeği eklendi."
+                "iPhone tarzı ayarlar dişlisi sadece Bağlantı ekranının sol altına eklendi.",
+                "Bize Ulaşın butonuna basıldığında açılan iletişim penceresi ve Instagram seçeneği eklendi.",
+                "Eşleştirme ve bağlantı oturumları için soket temizleme ve hata detayları geliştirildi."
             )
         ),
         ReleaseNote(
@@ -457,7 +460,7 @@ private val releaseNotesMap = mapOf(
         ReleaseNote(
             "v1.5",
             listOf(
-                "Added an iPhone-style gear icon at the bottom-left, a Contact Us options sheet with Instagram, and IP/network scan fallbacks."
+                "Added iPhone-style gear on Connection screen only, Contact Us sheet with Instagram, and socket/error improvements."
             )
         ),
         ReleaseNote(
@@ -577,7 +580,7 @@ class MainActivity : Activity() {
         ColorPalette("palCoral", Color.parseColor("#140B0E"), Color.parseColor("#241419"), Color.parseColor("#1A0E12"), Color.parseColor("#341C24"), Color.parseColor("#4D2935"), Color.parseColor("#E11D48"), Color.parseColor("#FB7185"))
     )
     private val vibLevels = listOf(0 to "vibOff", 1 to "vibLight", 2 to "vibMed", 3 to "vibStrong")
-    private val wheelSizes = listOf(0 to ("sizeSmall" to 248), 1 to ("sizeMedium" to 292), 2 to ("sizeLarge" to 332))
+    private val wheelSizes = listOf(0 to ("sizeSmall" to 280), 1 to ("sizeMedium" to 326), 2 to ("sizeLarge" to 356))
     private val languages = listOf("tr" to "Türkçe", "en" to "English")
 
     private var paletteIndex = 0
@@ -760,12 +763,9 @@ class MainActivity : Activity() {
         val target = i.coerceIn(0, (screens.size - 1).coerceAtLeast(0))
         currentScreen = target
         for (n in screens.indices) screens[n].visibility = if (n == target) View.VISIBLE else View.GONE
+        bottomLeftGearBtn.visibility = if (target == 1) View.VISIBLE else View.GONE
         if (target == 0) updateRemoteHeaderIndicator()
-        val activeNavIndex = when (target) {
-            0 -> 0
-            1 -> 1
-            else -> 2
-        }
+        val activeNavIndex = if (target == 0) 0 else 1
         for (n in navBtns.indices) {
             val active = n == activeNavIndex
             navBtns[n].background = makeShapeBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke, false)
@@ -823,10 +823,9 @@ class MainActivity : Activity() {
     }
 
     private fun applyTextsAndState() {
-        if (navBtns.size >= 3) {
+        if (navBtns.size >= 2) {
             navBtns[0].text = t("tabRemote")
             navBtns[1].text = t("tabConnect")
-            navBtns[2].text = t("tabSettings")
         }
         tvIpTitleView.text = t("tvIp")
         scanTvBtnView.text = t("scanTv")
@@ -1062,7 +1061,7 @@ class MainActivity : Activity() {
             status = TextView(this).apply { text = formatStatus(lastStatusState, null); setTextColor(cSubtext); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f)); setSingleLine() }
 
             powerBtnView = RemoteIconButton(this, IconKind.POWER).apply {
-                layoutParams = lp(px(50), px(50))
+                layoutParams = lp(px(56), px(56))
                 applyPressAnim(this)
                 setOnClickListener { tap(v = this); sendKey(26) }
             }
@@ -1083,26 +1082,26 @@ class MainActivity : Activity() {
 
             val remoteHeaderRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(56), 0f, 0, 2, 0, 10)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(60), 0f, 0, 2, 0, 10)
                 addView(powerBtnView); addView(remoteHeaderDot); addView(remoteHeaderTvName)
             }
             val volumeRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(66), 0f, 0, 0, 0, 8)
-                addView(roundIconKey(IconKind.MUTE, 60) { sendKey(164) })
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(74), 0f, 0, 2, 0, 10)
+                addView(roundIconKey(IconKind.MUTE, 66) { sendKey(164) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.VOL_DOWN, 60) { sendKey(25) })
+                addView(roundIconKey(IconKind.VOL_DOWN, 66) { sendKey(25) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.VOL_UP, 60) { sendKey(24) })
+                addView(roundIconKey(IconKind.VOL_UP, 66) { sendKey(24) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.RECONNECT, 60) { manualDisconnect = false; connectClicked() })
+                addView(roundIconKey(IconKind.RECONNECT, 66) { manualDisconnect = false; connectClicked() })
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(90), 0f, 0, 4, 0, 2)
-                addView(roundIconKey(IconKind.BACK, 86) { sendKey(4) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(34), px(1)) })
-                addView(roundIconKey(IconKind.HOME, 86) { sendKey(3) })
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(102), 0f, 0, 6, 0, 6)
+                addView(roundIconKey(IconKind.BACK, 96) { sendKey(4) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(44), px(1)) })
+                addView(roundIconKey(IconKind.HOME, 96) { sendKey(3) })
             }
 
             screens.add(LinearLayout(this).apply {
@@ -1196,7 +1195,15 @@ class MainActivity : Activity() {
             }
             resetPairBtnView = Button(this).apply {
                 text = t("resetPair"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 8, 0, 0)
-                setOnClickListener { tap(v = this); prefs.edit().putBoolean("paired", false).apply(); manualDisconnect = true; pairConn?.close(); pairConn = null; remote?.close(); remote = null; connectedHost = null; ready = false; codeRow.visibility = View.GONE; uiState(StatusState.PAIR_RESET, cMuted); updateRemoteHeaderIndicator() }
+                setOnClickListener {
+                    tap(v = this)
+                    prefs.edit().putBoolean("paired", false).apply()
+                    File(filesDir, "client.key").delete()
+                    File(filesDir, "client.crt").delete()
+                    identity = null
+                    manualDisconnect = true; pairConn?.close(); pairConn = null; remote?.close(); remote = null; connectedHost = null; ready = false
+                    codeRow.visibility = View.GONE; uiState(StatusState.PAIR_RESET, cMuted); updateRemoteHeaderIndicator()
+                }
             }
             contactUsBtnView = Button(this).apply {
                 text = t("contactUs"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 8, 0, 0)
@@ -1252,7 +1259,7 @@ class MainActivity : Activity() {
                     setMargins(px(22), 0, 0, px(12))
                 })
             }
-            val bottomNav = row(nav(t("tabRemote"), 0), nav(t("tabConnect"), 1), nav(t("tabSettings"), 2)).apply { setPadding(px(8), px(2), px(8), px(4)) }
+            val bottomNav = row(nav(t("tabRemote"), 0), nav(t("tabConnect"), 1)).apply { setPadding(px(8), px(2), px(8), px(4)) }
             this@MainActivity.rootView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(px(4), px(26), px(4), px(6)); addView(topBarView); addView(content); addView(bottomNav) }
 
             buildScanModal(prefs)
@@ -1266,6 +1273,7 @@ class MainActivity : Activity() {
 
             currentScreen = if (paired && isValidIpv4(ipBox.text.toString().trim())) 0 else 1
             applyPalette(paletteIndex, switchTab = true)
+            show(currentScreen)
             if (currentScreen == 0 && autoConnectEnabled) connectClicked()
         } catch (e: Throwable) {
             setContentView(TextView(this).apply {
@@ -1473,7 +1481,12 @@ class MainActivity : Activity() {
 
     private fun openTls(h: String, port: Int, id: Identity, readTimeoutMs: Int): Conn {
         val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null) }
-        val s = (ctx.socketFactory.createSocket() as SSLSocket).apply { connect(InetSocketAddress(h, port), 2500); tcpNoDelay = true; soTimeout = readTimeoutMs; startHandshake() }
+        val s = (ctx.socketFactory.createSocket() as SSLSocket).apply {
+            tcpNoDelay = true
+            soTimeout = readTimeoutMs
+            connect(InetSocketAddress(h, port), 4000)
+            startHandshake()
+        }
         return Conn(s)
     }
 
@@ -1494,13 +1507,16 @@ class MainActivity : Activity() {
         fastIo.execute {
             try {
                 pairConn?.close()
+                pairConn = null
                 val c = openTls(h, 6467, identity(), 25000)
                 pairServerCert = c.sock.session.peerCertificates[0] as X509Certificate
-                c.send(outer(10, Pb.str(1, "atvremote") + Pb.str(2, "TV Kumanda"))); expect(c, 11)
+                c.send(outer(10, Pb.str(1, "atvremote") + Pb.str(2, "Android TV Remote"))); expect(c, 11)
                 c.send(outer(20, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(3, 1))); expect(c, 20)
                 c.send(outer(30, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(2, 1))); expect(c, 31)
                 pairConn = c; runOnUiThread { codeRow.visibility = View.VISIBLE }; uiState(StatusState.ENTER_CODE, cAccentStroke)
             } catch (e: Exception) {
+                pairConn?.close()
+                pairConn = null
                 uiState(StatusState.PAIRING_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName)
             }
         }
@@ -1511,11 +1527,16 @@ class MainActivity : Activity() {
         if (code.length != 6) { uiState(StatusState.CODE_LENGTH, cRedStroke); return }
         fastIo.execute {
             try {
-                val c = pairConn ?: throw IllegalStateException(t("connect")); val serverCert = pairServerCert ?: throw IllegalStateException("Cert")
+                val hexPart = code.substring(2)
+                if (!hexPart.all { it in '0'..'9' || it in 'A'..'F' }) {
+                    throw IllegalArgumentException("Geçersiz kod formatı")
+                }
+                val c = pairConn ?: throw IllegalStateException("Eşleştirme oturumu açık değil")
+                val serverCert = pairServerCert ?: throw IllegalStateException("TV sertifikası alınamadı")
                 val id = identity(); val clientPub = id.cert.publicKey as RSAPublicKey; val serverPub = serverCert.publicKey as RSAPublicKey
                 val secret = MessageDigest.getInstance("SHA-256").apply {
                     update(clientPub.modulus.unsigned()); update(clientPub.publicExponent.unsigned())
-                    update(serverPub.modulus.unsigned()); update(serverPub.publicExponent.unsigned()); update(hexToBytes(code.substring(2)))
+                    update(serverPub.modulus.unsigned()); update(serverPub.publicExponent.unsigned()); update(hexToBytes(hexPart))
                 }.digest()
                 c.send(outer(40, Pb.bytes(1, secret))); expect(c, 41); c.close(); pairConn = null; manualDisconnect = false
                 getSharedPreferences("tv", MODE_PRIVATE).edit().putBoolean("paired", true).apply()
