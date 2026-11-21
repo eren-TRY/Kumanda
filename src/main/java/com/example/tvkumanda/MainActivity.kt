@@ -530,7 +530,7 @@ class MainActivity : Activity() {
     private lateinit var remoteHeaderDot: View
     private lateinit var remoteHeaderSettingsBtn: Button
     private lateinit var connectCardView: LinearLayout
-    private lateinit var settingsScrollView: ScrollView
+    private lateinit var settingsSectionView: LinearLayout
     private lateinit var settingsCardView: LinearLayout
     private lateinit var tvIpTitleView: TextView
     private lateinit var scanTvBtnView: Button
@@ -677,7 +677,7 @@ class MainActivity : Activity() {
         val target = i.coerceIn(0, (screens.size - 1).coerceAtLeast(0))
         currentScreen = target
         for (n in screens.indices) screens[n].visibility = if (n == target) View.VISIBLE else View.GONE
-        if (target != 1 && settingsOpen) { settingsOpen = false; settingsScrollView.visibility = View.GONE }
+        if (target != 1 && settingsOpen) { settingsOpen = false; settingsSectionView.visibility = View.GONE }
         if (target == 0) updateRemoteHeaderIndicator()
         for (n in navBtns.indices) {
             val active = n == target
@@ -791,7 +791,7 @@ class MainActivity : Activity() {
         }
         scanProgressBar = ProgressBar(this).apply {
             isIndeterminate = true
-            layoutParams = lp(px(36), px(36), 0f, 0, 4, 0, 14).apply { gravity = Gravity.CENTER_HORIZONTAL }
+            layoutParams = LinearLayout.LayoutParams(px(36), px(36)).apply { gravity = Gravity.CENTER_HORIZONTAL; setMargins(0, px(4), 0, px(14)) }
         }
         scanResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
@@ -865,14 +865,14 @@ class MainActivity : Activity() {
             remoteHeaderTvName = TextView(this).apply { text = t("tvDeviceFallback"); typeface = Typeface.DEFAULT_BOLD; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15.5f)); setSingleLine(); layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
             remoteHeaderSettingsBtn = Button(this).apply {
                 text = "⚙"; layoutParams = lp(px(48), px(48))
-                setOnClickListener { tap(v = this); settingsOpen = true; show(1); settingsScrollView.visibility = View.VISIBLE; styleBtn(openSettingsBtnView, cAccent, cAccentStroke, cAccentText, 15f, 18) }
+                setOnClickListener { tap(v = this); settingsOpen = true; show(1); settingsSectionView.visibility = View.VISIBLE; styleBtn(openSettingsBtnView, cAccent, cAccentStroke, cAccentText, 15f, 18) }
             }
 
             val initialSize = wheelSizes[wheelSizeMode].second.second
             dpadWheelView = DpadWheelView(this) { zone ->
                 tap(v = dpadWheelView)
                 when (zone) { DpadZone.UP -> sendKey(19); DpadZone.RIGHT -> sendKey(22); DpadZone.DOWN -> sendKey(20); DpadZone.LEFT -> sendKey(21); DpadZone.CENTER -> sendKey(23); DpadZone.NONE -> Unit }
-            }.apply { layoutParams = lp(px(initialSize), px(initialSize), 1f, 0, 6, 0, 6) }
+            }.apply { layoutParams = LinearLayout.LayoutParams(px(initialSize), px(initialSize)).apply { setMargins(0, px(6), 0, px(6)) } }
 
             val remoteHeaderRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(54), 0f, 0, 2, 0, 10); addView(powerBtnView); addView(remoteHeaderDot); addView(remoteHeaderTvName); addView(remoteHeaderSettingsBtn) }
             val volumeRow = LinearLayout(this).apply {
@@ -897,7 +897,7 @@ class MainActivity : Activity() {
             }
             openSettingsBtnView = Button(this).apply {
                 text = "⚙ ${t("settings")}"; layoutParams = lp(0, px(58), 1f, 6, 0, 0, 0)
-                setOnClickListener { tap(v = this); settingsOpen = !settingsOpen; settingsScrollView.visibility = if (settingsOpen) View.VISIBLE else View.GONE; styleBtn(this, if (settingsOpen) cAccent else cBtn, if (settingsOpen) cAccentStroke else cBtnStroke, if (settingsOpen) cAccentText else cText, 15f, 18) }
+                setOnClickListener { tap(v = this); settingsOpen = !settingsOpen; settingsSectionView.visibility = if (settingsOpen) View.VISIBLE else View.GONE; styleBtn(this, if (settingsOpen) cAccent else cBtn, if (settingsOpen) cAccentStroke else cBtnStroke, if (settingsOpen) cAccentText else cText, 15f, 18) }
             }
             scanTvBtnView = Button(this).apply { text = t("scanTv"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 10, 0, 0); setOnClickListener { tap(v = this); openAndScanNetwork(prefs) } }
             tvIpTitleView = sectionTitle(t("tvIp"), 18f, 10)
@@ -924,7 +924,7 @@ class MainActivity : Activity() {
             sizeHeaderRow = sh; sizeHeaderLabel = sl; sizeHeaderValue = sv
             sizeOptionsContainer = makeDropdownContainer().apply {
                 for ((mode, _) in wheelSizes) {
-                    val r = optionRow(t("sizeMedium"), null) { wheelSizeMode = mode; prefs.edit().putInt("wheel_size", mode).apply(); sizeDropdownOpen = false; val p = px(wheelSizes[mode].second.second); dpadWheelView.layoutParams = lp(p, p, 1f, 0, 6, 0, 6); refreshDropdowns() }
+                    val r = optionRow(t("sizeMedium"), null) { wheelSizeMode = mode; prefs.edit().putInt("wheel_size", mode).apply(); sizeDropdownOpen = false; val p = px(wheelSizes[mode].second.second); dpadWheelView.layoutParams = LinearLayout.LayoutParams(p, p).apply { setMargins(0, px(6), 0, px(6)) }; refreshDropdowns() }
                     sizeRows.add(mode to r); addView(r)
                 }
             }
@@ -962,14 +962,22 @@ class MainActivity : Activity() {
 
             settingsCardView = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; setPadding(px(16), px(16), px(16), px(16))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 addView(settingsTitleView); addView(vibHeaderRow); addView(vibOptionsContainer); addView(sizeHeaderRow); addView(sizeOptionsContainer)
                 addView(autoConnectBtn); addView(paletteHeaderRow); addView(paletteOptionsContainer); addView(langHeaderRow); addView(langOptionsContainer)
                 addView(resetPairBtnView); addView(contactUsBtnView)
             }
-            settingsScrollView = ScrollView(this).apply { visibility = View.GONE; layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 12, 0, 0); addView(settingsCardView) }
+            settingsSectionView = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; visibility = View.GONE
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 12, 0, 0)
+                addView(settingsCardView)
+            }
             screens.add(ScrollView(this).apply {
                 visibility = View.GONE
-                addView(LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(px(14), px(10), px(14), px(12)); addView(connectCardView); addView(settingsScrollView) })
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(px(14), px(10), px(14), px(12))
+                    addView(connectCardView); addView(settingsSectionView)
+                })
             })
 
             topBarView = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(px(16), px(11), px(16), px(11)); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 14, 2, 14, 6); addView(statusDot); addView(status) }
