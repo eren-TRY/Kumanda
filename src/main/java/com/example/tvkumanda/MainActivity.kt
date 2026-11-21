@@ -1,5 +1,6 @@
 package com.example.tvkumanda
 
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
@@ -494,6 +495,7 @@ class MainActivity : Activity() {
     private var langDropdownOpen = false
     private var scanModalOpen = false
     private var scanInProgress = false
+    private var pulseAnim: ObjectAnimator? = null
     private var scanTroublesVisible = false
     private var lastStatusState = StatusState.DISCONNECTED
     private var lastStatusDetail: String? = null
@@ -781,16 +783,17 @@ class MainActivity : Activity() {
 
     private fun setScanBusy(busy: Boolean) {
         scanInProgress = busy
+        pulseAnim?.cancel()
+        pulseAnim = null
+        scanIndicatorView.alpha = 1f
         scanIndicatorView.visibility = if (busy) View.VISIBLE else View.GONE
         if (busy) {
-            scanIndicatorView.animate().cancel()
-            scanIndicatorView.alpha = 1f
-            scanIndicatorView.animate().alpha(0.25f).setDuration(550L).withEndAction {
-                if (scanInProgress && scanModalOpen) setScanBusy(true)
-            }.start()
-        } else {
-            scanIndicatorView.animate().cancel()
-            scanIndicatorView.alpha = 1f
+            pulseAnim = ObjectAnimator.ofFloat(scanIndicatorView, "alpha", 1f, 0.25f).apply {
+                duration = 550L
+                repeatMode = ObjectAnimator.REVERSE
+                repeatCount = ObjectAnimator.INFINITE
+                start()
+            }
         }
     }
 
@@ -804,19 +807,14 @@ class MainActivity : Activity() {
     }
 
     private fun buildScanModal(prefs: android.content.SharedPreferences) {
-        step = "9a-icon/title"
         scanIconBadge = TextView(this).apply { text = "🖥"; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(20f)); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 10, 0) }
         scanTitleView = TextView(this).apply { text = t("scanModalTitle"); typeface = Typeface.DEFAULT_BOLD; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(18f)); layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
-
-        step = "9b-closeBtn"
         scanCloseBtn = Button(this).apply {
             text = "✕"; background = null; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(18f)); typeface = Typeface.DEFAULT_BOLD; isAllCaps = false
             minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0; setPadding(px(8), px(4), px(8), px(4))
             layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            setOnClickListener { closeScanModal() }
+            setOnClickListener { tap(v = this); closeScanModal() }
         }
-
-        step = "9c-header/msg/indicator"
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 14)
@@ -831,8 +829,6 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cAccentStroke) }
             layoutParams = LinearLayout.LayoutParams(px(18), px(18)).apply { gravity = Gravity.CENTER_HORIZONTAL; setMargins(0, px(4), 0, px(14)) }
         }
-
-        step = "9d-results/troubles"
         scanResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 8); tag = prefs
@@ -845,10 +841,8 @@ class MainActivity : Activity() {
             text = t("scanTroubles"); typeface = Typeface.DEFAULT_BOLD; isClickable = true; isFocusable = true
             setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f)); setPadding(px(4), px(6), px(4), px(2))
             layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            setOnClickListener { scanTroublesVisible = !scanTroublesVisible; scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE }
+            setOnClickListener { tap(v = this); scanTroublesVisible = !scanTroublesVisible; scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE }
         }
-
-        step = "9e-card/backdrop"
         scanDialogCardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(px(20), px(20), px(20), px(20))
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply { setMargins(px(24), px(24), px(24), px(24)) }
@@ -1304,5 +1298,5 @@ class MainActivity : Activity() {
 
     private fun sendKey(code: Int) = fastIo.execute { try { writeKey(code) } catch (e: Exception) { uiState(StatusState.SEND_FAILED, cRedStroke, e.message) } }
 
-    override fun onDestroy() { super.onDestroy(); scanToken++; pairConn?.close(); remote?.close(); fastIo.shutdownNow() }
+    override fun onDestroy() { super.onDestroy(); pulseAnim?.cancel(); pulseAnim = null; scanToken++; pairConn?.close(); remote?.close(); fastIo.shutdownNow() }
 }
