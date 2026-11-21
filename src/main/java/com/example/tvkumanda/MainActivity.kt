@@ -804,14 +804,19 @@ class MainActivity : Activity() {
     }
 
     private fun buildScanModal(prefs: android.content.SharedPreferences) {
+        step = "9a-icon/title"
         scanIconBadge = TextView(this).apply { text = "🖥"; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(20f)); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 10, 0) }
         scanTitleView = TextView(this).apply { text = t("scanModalTitle"); typeface = Typeface.DEFAULT_BOLD; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(18f)); layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+
+        step = "9b-closeBtn"
         scanCloseBtn = Button(this).apply {
             text = "✕"; background = null; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(18f)); typeface = Typeface.DEFAULT_BOLD; isAllCaps = false
             minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0; setPadding(px(8), px(4), px(8), px(4))
             layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            applyPressAnim(this); setOnClickListener { tap(v = this); closeScanModal() }
+            setOnClickListener { closeScanModal() }
         }
+
+        step = "9c-header/msg/indicator"
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 14)
@@ -826,6 +831,8 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cAccentStroke) }
             layoutParams = LinearLayout.LayoutParams(px(18), px(18)).apply { gravity = Gravity.CENTER_HORIZONTAL; setMargins(0, px(4), 0, px(14)) }
         }
+
+        step = "9d-results/troubles"
         scanResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 8); tag = prefs
@@ -838,8 +845,10 @@ class MainActivity : Activity() {
             text = t("scanTroubles"); typeface = Typeface.DEFAULT_BOLD; isClickable = true; isFocusable = true
             setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f)); setPadding(px(4), px(6), px(4), px(2))
             layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            applyPressAnim(this); setOnClickListener { tap(v = this); scanTroublesVisible = !scanTroublesVisible; scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE }
+            setOnClickListener { scanTroublesVisible = !scanTroublesVisible; scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE }
         }
+
+        step = "9e-card/backdrop"
         scanDialogCardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(px(20), px(20), px(20), px(20))
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply { setMargins(px(24), px(24), px(24), px(24)) }
