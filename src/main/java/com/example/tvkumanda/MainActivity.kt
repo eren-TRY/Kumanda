@@ -1031,10 +1031,9 @@ class MainActivity : Activity() {
 
             step = "9-scan modal"
             buildScanModal(prefs)
-            val shell = FrameLayout(this).apply {
-                addView(rootView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-                addView(scanBackdropView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-            }
+            val shell = FrameLayout(this)
+            shell.addView(this@MainActivity.rootView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            shell.addView(scanBackdropView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
 
             step = "10-ağaç kontrolü"
             findCycle(shell)?.let { throw IllegalStateException(it) }
