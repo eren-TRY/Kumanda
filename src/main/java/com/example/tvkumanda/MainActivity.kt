@@ -179,7 +179,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w <= 0 || h <= 0) return
-        val cx = w / 2f; val cy = h / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.30f
+        val cx = w / 2f; val cy = h / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.29f
         outerRect.set(cx - outerR, cy - outerR, cx + outerR, cy + outerR)
         innerRect.set(cx - innerR, cy - innerR, cx + innerR, cy + innerR)
         val starts = floatArrayOf(-45f, 45f, 135f, 225f)
@@ -189,7 +189,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     }
 
     private fun zoneAt(x: Float, y: Float): DpadZone {
-        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.30f
+        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.29f
         val dist = hypot((x - cx).toDouble(), (y - cy).toDouble())
         if (dist > outerR) return DpadZone.NONE
         if (dist <= innerR) return DpadZone.CENTER
@@ -203,9 +203,9 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
         canvas.translate(cx, cy)
         canvas.rotate(deg.toFloat())
         chevronPath.reset()
-        chevronPath.moveTo(-arm * 0.52f, arm * 0.25f)
-        chevronPath.lineTo(0f, -arm * 0.28f)
-        chevronPath.lineTo(arm * 0.52f, arm * 0.25f)
+        chevronPath.moveTo(-arm * 0.48f, arm * 0.22f)
+        chevronPath.lineTo(0f, -arm * 0.24f)
+        chevronPath.lineTo(arm * 0.48f, arm * 0.22f)
         canvas.drawPath(chevronPath, arrowPaint)
         canvas.restore()
     }
@@ -213,7 +213,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.30f
+        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.29f
         strokePaint.strokeWidth = maxOf(2f, outerR * 0.014f); strokePaint.color = sliceStroke
         val zones = arrayOf(DpadZone.RIGHT, DpadZone.DOWN, DpadZone.LEFT, DpadZone.UP)
         for (i in 0 until 4) {
@@ -222,8 +222,8 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
         }
         val midR = (outerR + innerR) * 0.54f
         arrowPaint.color = arrowColor
-        arrowPaint.strokeWidth = maxOf(3.2f, outerR * 0.028f)
-        val arm = outerR * 0.15f
+        arrowPaint.strokeWidth = maxOf(3f, outerR * 0.025f)
+        val arm = outerR * 0.135f
         for (deg in listOf(0.0, 90.0, 180.0, 270.0)) {
             val rad = Math.toRadians(deg - 90.0)
             drawChevron(canvas, cx + (midR * cos(rad)).toFloat(), cy + (midR * sin(rad)).toFloat(), arm, deg)
@@ -233,7 +233,8 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
         canvas.drawCircle(cx, cy, innerR, fillPaint); canvas.drawCircle(cx, cy, innerR, strokePaint)
     }
 
-    private fun animateTap() { animate().cancel(); scaleX = 0.95f; scaleY = 0.95f; animate().scaleX(1f).scaleY(1f).setDuration(85L).start() }
+    private fun resetScale() { animate().cancel(); scaleX = 1f; scaleY = 1f }
+    private fun animateTap() { animate().cancel(); scaleX = 0.96f; scaleY = 0.96f; animate().scaleX(1f).scaleY(1f).setDuration(85L).start() }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -242,17 +243,21 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
                 val z = zoneAt(event.x, event.y)
                 if (z != activeZone) {
                     activeZone = z
-                    if (event.actionMasked == MotionEvent.ACTION_DOWN && z != DpadZone.NONE) { scaleX = 0.95f; scaleY = 0.95f }
+                    if (z == DpadZone.NONE) {
+                        resetScale()
+                    } else if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        scaleX = 0.96f; scaleY = 0.96f
+                    }
                     invalidate()
                 }
                 return true
             }
             MotionEvent.ACTION_UP -> {
                 val z = zoneAt(event.x, event.y)
-                if (z != DpadZone.NONE) { animateTap(); onZoneTap(z) } else { scaleX = 1f; scaleY = 1f }
+                if (z != DpadZone.NONE) { animateTap(); onZoneTap(z) } else { resetScale() }
                 activeZone = DpadZone.NONE; invalidate(); performClick(); return true
             }
-            MotionEvent.ACTION_CANCEL -> { scaleX = 1f; scaleY = 1f; activeZone = DpadZone.NONE; invalidate(); return true }
+            MotionEvent.ACTION_CANCEL -> { resetScale(); activeZone = DpadZone.NONE; invalidate(); return true }
         }
         return super.onTouchEvent(event)
     }
@@ -264,6 +269,7 @@ private class RemoteIconButton(
     private val kind: IconKind
 ) : View(context) {
     private var iconColor = Color.parseColor("#F8FAFC")
+    private var gearHoleColor = Color.parseColor("#141821")
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -281,23 +287,28 @@ private class RemoteIconButton(
         invalidate()
     }
 
+    fun setGearHoleColor(color: Int) {
+        gearHoleColor = color
+        invalidate()
+    }
+
     private fun drawSpeakerBody(canvas: Canvas, cx: Float, cy: Float, u: Float) {
         speakerPath.reset()
-        speakerPath.moveTo(cx - u * 0.72f, cy - u * 0.24f)
-        speakerPath.lineTo(cx - u * 0.34f, cy - u * 0.24f)
-        speakerPath.lineTo(cx + u * 0.14f, cy - u * 0.68f)
-        speakerPath.lineTo(cx + u * 0.14f, cy + u * 0.68f)
-        speakerPath.lineTo(cx - u * 0.34f, cy + u * 0.24f)
-        speakerPath.lineTo(cx - u * 0.72f, cy + u * 0.24f)
+        speakerPath.moveTo(cx - u * 0.68f, cy - u * 0.22f)
+        speakerPath.lineTo(cx - u * 0.32f, cy - u * 0.22f)
+        speakerPath.lineTo(cx + u * 0.14f, cy - u * 0.62f)
+        speakerPath.lineTo(cx + u * 0.14f, cy + u * 0.62f)
+        speakerPath.lineTo(cx - u * 0.32f, cy + u * 0.22f)
+        speakerPath.lineTo(cx - u * 0.68f, cy + u * 0.22f)
         speakerPath.close()
         canvas.drawPath(speakerPath, fillPaint)
     }
 
     private fun drawIosGear(canvas: Canvas, cx: Float, cy: Float, u: Float) {
         val teeth = 12
-        val rTip = u * 0.92f
-        val rRoot = u * 0.72f
-        val rInner = u * 0.30f
+        val rTip = u * 0.90f
+        val rRoot = u * 0.70f
+        val rInner = u * 0.28f
         gearPath.reset()
         val stepAngle = (2.0 * PI) / teeth
         for (i in 0 until teeth) {
@@ -320,7 +331,7 @@ private class RemoteIconButton(
         gearPath.close()
         canvas.drawPath(gearPath, fillPaint)
 
-        fillPaint.color = Color.parseColor("#141821")
+        fillPaint.color = gearHoleColor
         canvas.drawCircle(cx, cy, rInner, fillPaint)
         strokePaint.color = iconColor
         strokePaint.strokeWidth = maxOf(2f, u * 0.14f)
@@ -334,66 +345,66 @@ private class RemoteIconButton(
         val w = width.toFloat(); val h = height.toFloat()
         val cx = w / 2f; val cy = h / 2f
         val s = min(w, h)
-        val u = s * 0.28f
+        val u = s * 0.26f
         strokePaint.color = iconColor
         fillPaint.color = iconColor
-        strokePaint.strokeWidth = maxOf(2.8f, s * 0.058f)
+        strokePaint.strokeWidth = maxOf(2.4f, s * 0.052f)
 
         when (kind) {
             IconKind.POWER -> {
-                val r = s * 0.27f
+                val r = s * 0.25f
                 rect.set(cx - r, cy - r + r * 0.14f, cx + r, cy + r + r * 0.14f)
                 canvas.drawArc(rect, -58f, 296f, false, strokePaint)
                 canvas.drawLine(cx, cy - r * 0.35f, cx, cy + r * 0.12f, strokePaint)
             }
             IconKind.MUTE -> {
-                drawSpeakerBody(canvas, cx - u * 0.15f, cy, u)
-                val x1 = cx + u * 0.35f; val x2 = cx + u * 0.85f
-                val d = u * 0.26f
+                drawSpeakerBody(canvas, cx - u * 0.14f, cy, u)
+                val x1 = cx + u * 0.34f; val x2 = cx + u * 0.80f
+                val d = u * 0.24f
                 canvas.drawLine(x1, cy - d, x2, cy + d, strokePaint)
                 canvas.drawLine(x1, cy + d, x2, cy - d, strokePaint)
             }
             IconKind.VOL_DOWN -> {
-                drawSpeakerBody(canvas, cx - u * 0.15f, cy, u)
-                rect.set(cx + u * 0.12f, cy - u * 0.35f, cx + u * 0.65f, cy + u * 0.35f)
+                drawSpeakerBody(canvas, cx - u * 0.14f, cy, u)
+                rect.set(cx + u * 0.12f, cy - u * 0.32f, cx + u * 0.60f, cy + u * 0.32f)
                 canvas.drawArc(rect, -42f, 84f, false, strokePaint)
             }
             IconKind.VOL_UP -> {
-                drawSpeakerBody(canvas, cx - u * 0.22f, cy, u)
-                rect.set(cx + u * 0.05f, cy - u * 0.35f, cx + u * 0.55f, cy + u * 0.35f)
+                drawSpeakerBody(canvas, cx - u * 0.20f, cy, u)
+                rect.set(cx + u * 0.06f, cy - u * 0.32f, cx + u * 0.50f, cy + u * 0.32f)
                 canvas.drawArc(rect, -42f, 84f, false, strokePaint)
-                rect.set(cx - u * 0.05f, cy - u * 0.58f, cx + u * 0.85f, cy + u * 0.58f)
+                rect.set(cx - u * 0.02f, cy - u * 0.54f, cx + u * 0.80f, cy + u * 0.54f)
                 canvas.drawArc(rect, -42f, 84f, false, strokePaint)
             }
             IconKind.BACK -> {
-                val a = u * 1.05f
-                canvas.drawLine(cx - a * 0.85f, cy, cx + a * 0.85f, cy, strokePaint)
-                canvas.drawLine(cx - a * 0.85f, cy, cx - a * 0.15f, cy - a * 0.72f, strokePaint)
-                canvas.drawLine(cx - a * 0.85f, cy, cx - a * 0.15f, cy + a * 0.72f, strokePaint)
+                val a = u * 0.95f
+                canvas.drawLine(cx - a * 0.80f, cy, cx + a * 0.80f, cy, strokePaint)
+                canvas.drawLine(cx - a * 0.80f, cy, cx - a * 0.15f, cy - a * 0.68f, strokePaint)
+                canvas.drawLine(cx - a * 0.80f, cy, cx - a * 0.15f, cy + a * 0.68f, strokePaint)
             }
             IconKind.HOME -> {
-                val a = u * 1.02f
+                val a = u * 0.92f
                 val roofPath = Path().apply {
-                    moveTo(cx, cy - a * 0.92f)
-                    lineTo(cx - a * 0.92f, cy - a * 0.05f)
-                    lineTo(cx - a * 0.62f, cy - a * 0.05f)
-                    lineTo(cx - a * 0.62f, cy + a * 0.82f)
-                    lineTo(cx - a * 0.22f, cy + a * 0.82f)
-                    lineTo(cx - a * 0.22f, cy + a * 0.25f)
-                    lineTo(cx + a * 0.22f, cy + a * 0.25f)
-                    lineTo(cx + a * 0.22f, cy + a * 0.82f)
-                    lineTo(cx + a * 0.62f, cy + a * 0.82f)
-                    lineTo(cx + a * 0.62f, cy - a * 0.05f)
-                    lineTo(cx + a * 0.92f, cy - a * 0.05f)
+                    moveTo(cx, cy - a * 0.88f)
+                    lineTo(cx - a * 0.88f, cy - a * 0.05f)
+                    lineTo(cx - a * 0.58f, cy - a * 0.05f)
+                    lineTo(cx - a * 0.58f, cy + a * 0.78f)
+                    lineTo(cx - a * 0.20f, cy + a * 0.78f)
+                    lineTo(cx - a * 0.20f, cy + a * 0.24f)
+                    lineTo(cx + a * 0.20f, cy + a * 0.24f)
+                    lineTo(cx + a * 0.20f, cy + a * 0.78f)
+                    lineTo(cx + a * 0.58f, cy + a * 0.78f)
+                    lineTo(cx + a * 0.58f, cy - a * 0.05f)
+                    lineTo(cx + a * 0.88f, cy - a * 0.05f)
                     close()
                 }
                 canvas.drawPath(roofPath, fillPaint)
             }
             IconKind.IOS_SETTINGS -> {
-                drawIosGear(canvas, cx, cy, u * 1.05f)
+                drawIosGear(canvas, cx, cy, u * 1.02f)
             }
             IconKind.RECONNECT -> {
-                val r = u * 0.72f
+                val r = u * 0.68f
                 rect.set(cx - r, cy - r, cx + r, cy + r)
                 canvas.drawArc(rect, -40f, 275f, false, strokePaint)
                 canvas.drawLine(cx + r * 0.75f, cy - r * 0.65f, cx + r * 1.05f, cy - r * 0.15f, strokePaint)
@@ -405,7 +416,7 @@ private class RemoteIconButton(
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { animate().cancel(); scaleX = 0.92f; scaleY = 0.92f; return true }
+            MotionEvent.ACTION_DOWN -> { animate().cancel(); scaleX = 0.93f; scaleY = 0.93f; return true }
             MotionEvent.ACTION_UP -> {
                 animate().scaleX(1f).scaleY(1f).setDuration(85L).start()
                 performClick()
@@ -480,7 +491,7 @@ private val releaseNotesMap = mapOf(
 
 private val stringsMap = mapOf(
     "tr" to mapOf(
-        "tabRemote" to "Kumanda", "tabConnect" to "Bağlantı", "tabSettings" to "Ayarlar",
+        "tabRemote" to "Kumanda", "tabConnect" to "Bağlantı",
         "power" to "Güç", "tvIp" to "TV IP Adresi", "scanTv" to "Ağda TV Ara", "settings" to "Ayarlar",
         "updates" to "Güncellemeler", "updatesTitle" to "Sürüm Geçmişi ve Yenilikler", "back" to "Geri",
         "hapticLevel" to "Titreşim Şiddeti", "wheelSize" to "Orta Tuş Boyutu",
@@ -489,6 +500,7 @@ private val stringsMap = mapOf(
         "autoOn" to "Oto Bağlan: Açık", "autoOff" to "Oto Bağlan: Kapalı",
         "resetPair" to "Eşleştirmeyi Sıfırla", "contactUs" to "Bize Ulaşın",
         "contactOptionsTitle" to "İletişim Seçenekleri", "openInstagram" to "Instagram", "close" to "Kapat",
+        "linkOpenFailed" to "Bağlantı açılamadı",
         "vibOff" to "Kapalı", "vibLight" to "Hafif", "vibMed" to "Orta", "vibStrong" to "Güçlü",
         "sizeSmall" to "Küçük", "sizeMedium" to "Orta", "sizeLarge" to "Büyük",
         "palBlue" to "Mavi", "palEmerald" to "Zümrüt", "palPurple" to "Mor",
@@ -509,7 +521,7 @@ private val stringsMap = mapOf(
         StatusState.SCAN_FOUND.name to "TV bulundu", StatusState.SCAN_NONE.name to "Ağda TV bulunamadı"
     ),
     "en" to mapOf(
-        "tabRemote" to "Remote", "tabConnect" to "Connection", "tabSettings" to "Settings",
+        "tabRemote" to "Remote", "tabConnect" to "Connection",
         "power" to "Power", "tvIp" to "TV IP Address", "scanTv" to "Find TV on Network", "settings" to "Settings",
         "updates" to "Updates", "updatesTitle" to "Version History & Changes", "back" to "Back",
         "hapticLevel" to "Haptic Strength", "wheelSize" to "Center Wheel Size",
@@ -518,6 +530,7 @@ private val stringsMap = mapOf(
         "autoOn" to "Auto Connect: On", "autoOff" to "Auto Connect: Off",
         "resetPair" to "Reset Pairing", "contactUs" to "Contact Us",
         "contactOptionsTitle" to "Contact Options", "openInstagram" to "Instagram", "close" to "Close",
+        "linkOpenFailed" to "Could not open link",
         "vibOff" to "Off", "vibLight" to "Light", "vibMed" to "Medium", "vibStrong" to "Strong",
         "sizeSmall" to "Small", "sizeMedium" to "Medium", "sizeLarge" to "Large",
         "palBlue" to "Blue", "palEmerald" to "Emerald", "palPurple" to "Purple",
@@ -541,16 +554,18 @@ private val stringsMap = mapOf(
 
 class MainActivity : Activity() {
     private val fastIo = Executors.newCachedThreadPool()
+    private val pairLock = Any()
+    private val connectLock = Any()
     private var identity: Identity? = null
-    private var remote: Conn? = null
+    @Volatile private var remote: Conn? = null
     @Volatile private var ready = false
     @Volatile private var reconnecting = false
     @Volatile private var manualDisconnect = false
     @Volatile private var scanToken = 0
-    private var pairConn: Conn? = null
-    private var pairServerCert: X509Certificate? = null
-    private var host = ""
-    private var connectedHost: String? = null
+    @Volatile private var pairConn: Conn? = null
+    @Volatile private var pairServerCert: X509Certificate? = null
+    @Volatile private var host = ""
+    @Volatile private var connectedHost: String? = null
     @Volatile private var hapticStrength = 2
     @Volatile private var wheelSizeMode = 1
     @Volatile private var autoConnectEnabled = true
@@ -765,9 +780,13 @@ class MainActivity : Activity() {
         for (n in screens.indices) screens[n].visibility = if (n == target) View.VISIBLE else View.GONE
         bottomLeftGearBtn.visibility = if (target == 1) View.VISIBLE else View.GONE
         if (target == 0) updateRemoteHeaderIndicator()
-        val activeNavIndex = if (target == 0) 0 else 1
+        val activeNavIndex: Int? = when (target) {
+            0 -> 0
+            1 -> 1
+            else -> null
+        }
         for (n in navBtns.indices) {
-            val active = n == activeNavIndex
+            val active = activeNavIndex != null && n == activeNavIndex
             navBtns[n].background = makeShapeBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke, false)
             navBtns[n].setTextColor(if (active) cAccentText else cSubtext)
         }
@@ -878,6 +897,7 @@ class MainActivity : Activity() {
         powerBtnView.setIconColor(cRedStroke)
         bottomLeftGearBtn.background = makeShapeBg(cCard, cAccentStroke, true)
         bottomLeftGearBtn.setIconColor(cText)
+        bottomLeftGearBtn.setGearHoleColor(cCard)
         for (btn in roundIconBtns) {
             btn.background = makeShapeBg(cBtn, cBtnStroke, true)
             btn.setIconColor(cText)
@@ -904,7 +924,7 @@ class MainActivity : Activity() {
         styleBtn(contactUsBtnView, cBtn, cAccentStroke, cText, 14.5f, 16)
 
         applyTextsAndState()
-        show(if (switchTab) currentScreen else currentScreen)
+        if (switchTab) show(currentScreen)
     }
 
     private fun setScanBusy(busy: Boolean) {
@@ -937,7 +957,8 @@ class MainActivity : Activity() {
 
     private fun disconnectTv() {
         manualDisconnect = true; ready = false; connectedHost = null
-        remote?.close(); remote = null
+        val cur = remote; remote = null
+        fastIo.execute { cur?.close() }
         uiState(StatusState.DISCONNECTED, cMuted); updateRemoteHeaderIndicator()
         if (scanModalOpen && scannedIps.isNotEmpty()) rebuildFoundTvCards()
     }
@@ -1040,6 +1061,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
+            step = "tercihler"
             dp = resources.displayMetrics.density.coerceAtLeast(0.75f)
             sp = resources.displayMetrics.scaledDensity.coerceAtLeast(0.75f)
             val prefs = getSharedPreferences("tv", MODE_PRIVATE)
@@ -1052,21 +1074,30 @@ class MainActivity : Activity() {
             lastStatusState = if (paired) StatusState.DISCONNECTED else StatusState.ENTER_IP
             lastStatusDotColor = cMuted
 
+            step = "giriş ve durum bileşenleri"
             ipBox = styledEdit("192.168.1.106", 17f, 18, 15, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 12)).apply { setText(prefs.getString("ip", "")) }
             codeBox = styledEdit(t("codeHint"), 16f, 16, 14, lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 10, 0))
             confirmPairBtnView = Button(this).apply { text = t("confirm"); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(54)); setOnClickListener { tap(v = this); finishPairing(codeBox.text.toString()) } }
             codeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE; setPadding(0, px(12), 0, 0); addView(codeBox); addView(confirmPairBtnView) }
 
             statusDot = View(this).apply { layoutParams = lp(px(10), px(10), 0f, 0, 0, 10, 0); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cMuted) } }
-            status = TextView(this).apply { text = formatStatus(lastStatusState, null); setTextColor(cSubtext); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f)); setSingleLine() }
+            status = TextView(this).apply {
+                text = formatStatus(lastStatusState, null)
+                setTextColor(cSubtext)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13f))
+                maxLines = 3
+                setLineSpacing(px(2).toFloat(), 1.1f)
+                layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
 
+            step = "kumanda ekranı"
             powerBtnView = RemoteIconButton(this, IconKind.POWER).apply {
-                layoutParams = lp(px(56), px(56))
+                layoutParams = lp(px(50), px(50))
                 applyPressAnim(this)
                 setOnClickListener { tap(v = this); sendKey(26) }
             }
-            remoteHeaderDot = View(this).apply { layoutParams = lp(px(10), px(10), 0f, 10, 0, 8, 0); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cMuted) } }
-            remoteHeaderTvName = TextView(this).apply { text = t("tvDeviceFallback"); typeface = Typeface.DEFAULT_BOLD; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15.5f)); setSingleLine(); layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+            remoteHeaderDot = View(this).apply { layoutParams = lp(px(9), px(9), 0f, 10, 0, 8, 0); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cMuted) } }
+            remoteHeaderTvName = TextView(this).apply { text = t("tvDeviceFallback"); typeface = Typeface.DEFAULT_BOLD; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15f)); setSingleLine(); layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
 
             bottomLeftGearBtn = RemoteIconButton(this, IconKind.IOS_SETTINGS).apply {
                 layoutParams = lp(px(52), px(52))
@@ -1078,30 +1109,30 @@ class MainActivity : Activity() {
             dpadWheelView = DpadWheelView(this) { zone ->
                 tap(v = dpadWheelView)
                 when (zone) { DpadZone.UP -> sendKey(19); DpadZone.RIGHT -> sendKey(22); DpadZone.DOWN -> sendKey(20); DpadZone.LEFT -> sendKey(21); DpadZone.CENTER -> sendKey(23); DpadZone.NONE -> Unit }
-            }.apply { layoutParams = LinearLayout.LayoutParams(px(initialSize), px(initialSize)).apply { setMargins(0, px(6), 0, px(6)) } }
+            }.apply { layoutParams = LinearLayout.LayoutParams(px(initialSize), px(initialSize)).apply { setMargins(0, px(8), 0, px(8)) } }
 
             val remoteHeaderRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(60), 0f, 0, 2, 0, 10)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(56), 0f, 0, 2, 0, 12)
                 addView(powerBtnView); addView(remoteHeaderDot); addView(remoteHeaderTvName)
             }
             val volumeRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(74), 0f, 0, 2, 0, 10)
-                addView(roundIconKey(IconKind.MUTE, 66) { sendKey(164) })
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 2, 0, 12)
+                addView(roundIconKey(IconKind.MUTE, 56) { sendKey(164) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.VOL_DOWN, 66) { sendKey(25) })
+                addView(roundIconKey(IconKind.VOL_DOWN, 56) { sendKey(25) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.VOL_UP, 66) { sendKey(24) })
+                addView(roundIconKey(IconKind.VOL_UP, 56) { sendKey(24) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.RECONNECT, 66) { manualDisconnect = false; connectClicked() })
+                addView(roundIconKey(IconKind.RECONNECT, 56) { manualDisconnect = false; connectClicked() })
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 4, 0, 4)
-                addView(roundIconKey(IconKind.BACK, 56) { sendKey(4) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(32), px(1)) })
-                addView(roundIconKey(IconKind.HOME, 56) { sendKey(3) })
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(62), 0f, 0, 6, 0, 6)
+                addView(roundIconKey(IconKind.BACK, 54) { sendKey(4) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(36), px(1)) })
+                addView(roundIconKey(IconKind.HOME, 54) { sendKey(3) })
             }
 
             screens.add(LinearLayout(this).apply {
@@ -1113,6 +1144,7 @@ class MainActivity : Activity() {
                 addView(bottomKeysRow)
             })
 
+            step = "bağlantı ekranı"
             connectBtnView = Button(this).apply {
                 text = t("connect"); layoutParams = lp(0, px(58), 1f, 0, 0, 6, 0)
                 setOnClickListener {
@@ -1141,6 +1173,7 @@ class MainActivity : Activity() {
                 })
             })
 
+            step = "ayarlar ekranı"
             fun makeDropdownContainer() = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
@@ -1159,7 +1192,7 @@ class MainActivity : Activity() {
             sizeHeaderRow = sh; sizeHeaderLabel = sl; sizeHeaderValue = sv
             sizeOptionsContainer = makeDropdownContainer().apply {
                 for ((mode, _) in wheelSizes) {
-                    val r = optionRow(t("sizeMedium"), null) { wheelSizeMode = mode; prefs.edit().putInt("wheel_size", mode).apply(); sizeDropdownOpen = false; val p = px(wheelSizes[mode].second.second); dpadWheelView.layoutParams = LinearLayout.LayoutParams(p, p).apply { setMargins(0, px(6), 0, px(6)) }; refreshDropdowns() }
+                    val r = optionRow(t("sizeMedium"), null) { wheelSizeMode = mode; prefs.edit().putInt("wheel_size", mode).apply(); sizeDropdownOpen = false; val p = px(wheelSizes[mode].second.second); dpadWheelView.layoutParams = LinearLayout.LayoutParams(p, p).apply { setMargins(0, px(8), 0, px(8)) }; refreshDropdowns() }
                     sizeRows.add(mode to r); addView(r)
                 }
             }
@@ -1201,7 +1234,10 @@ class MainActivity : Activity() {
                     File(filesDir, "client.key").delete()
                     File(filesDir, "client.crt").delete()
                     identity = null
-                    manualDisconnect = true; pairConn?.close(); pairConn = null; remote?.close(); remote = null; connectedHost = null; ready = false
+                    manualDisconnect = true
+                    val oldPair = pairConn; val oldRemote = remote
+                    pairConn = null; pairServerCert = null; remote = null; connectedHost = null; ready = false
+                    fastIo.execute { oldPair?.close(); oldRemote?.close() }
                     codeRow.visibility = View.GONE; uiState(StatusState.PAIR_RESET, cMuted); updateRemoteHeaderIndicator()
                 }
             }
@@ -1226,6 +1262,7 @@ class MainActivity : Activity() {
                 })
             })
 
+            step = "güncellemeler ekranı"
             updatesTitleView = sectionTitle(t("updatesTitle"), 18f, 10)
             updatesListContainer = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1251,6 +1288,7 @@ class MainActivity : Activity() {
                 })
             })
 
+            step = "kabuk ve yerleşim"
             topBarView = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(px(16), px(11), px(16), px(11)); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 14, 2, 14, 6); addView(statusDot); addView(status) }
             val content = FrameLayout(this).apply {
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
@@ -1271,8 +1309,9 @@ class MainActivity : Activity() {
 
             setContentView(shell)
 
+            step = "başlangıç durumu"
             currentScreen = if (paired && isValidIpv4(ipBox.text.toString().trim())) 0 else 1
-            applyPalette(paletteIndex, switchTab = true)
+            applyPalette(paletteIndex, switchTab = false)
             show(currentScreen)
             if (currentScreen == 0 && autoConnectEnabled) connectClicked()
         } catch (e: Throwable) {
@@ -1292,8 +1331,16 @@ class MainActivity : Activity() {
     }
 
     private fun openInstagram() {
-        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl)).apply { setPackage("com.instagram.android") }) }
-        catch (_: Exception) { try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl))) } catch (_: Exception) {} }
+        val uri = Uri.parse(instagramUrl)
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).apply { setPackage("com.instagram.android") })
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, uri))
+            } catch (_: Exception) {
+                Toast.makeText(this, t("linkOpenFailed"), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun intIpToPrefix(ipInt: Int): String? {
@@ -1404,25 +1451,30 @@ class MainActivity : Activity() {
 
         fastIo.execute {
             val found = Collections.synchronizedList(ArrayList<String>())
-            val latch = CountDownLatch(254); val pool = Executors.newFixedThreadPool(24)
-            for (lastOctet in 1..254) {
-                if (token != scanToken) { latch.countDown(); continue }
-                pool.execute {
-                    try {
-                        if (token == scanToken) {
-                            val candidate = "$prefix.$lastOctet"
-                            if ((isTvPortOpen(candidate, 6466, 240) || isTvPortOpen(candidate, 6467, 240)) && !found.contains(candidate)) {
-                                found.add(candidate)
-                                val sortedNow = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
-                                runOnUiThread {
-                                    if (token == scanToken && scanModalOpen) { scannedIps.clear(); scannedIps.addAll(sortedNow); rebuildFoundTvCards() }
+            val latch = CountDownLatch(254)
+            val pool = Executors.newFixedThreadPool(24)
+            try {
+                for (lastOctet in 1..254) {
+                    if (token != scanToken) { latch.countDown(); continue }
+                    pool.execute {
+                        try {
+                            if (token == scanToken) {
+                                val candidate = "$prefix.$lastOctet"
+                                if ((isTvPortOpen(candidate, 6466, 220) || isTvPortOpen(candidate, 6467, 220)) && !found.contains(candidate)) {
+                                    found.add(candidate)
+                                    val sortedNow = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
+                                    runOnUiThread {
+                                        if (token == scanToken && scanModalOpen) { scannedIps.clear(); scannedIps.addAll(sortedNow); rebuildFoundTvCards() }
+                                    }
                                 }
                             }
-                        }
-                    } finally { latch.countDown() }
+                        } finally { latch.countDown() }
+                    }
                 }
+                latch.await(6500, TimeUnit.MILLISECONDS)
+            } finally {
+                pool.shutdownNow()
             }
-            latch.await(6000, TimeUnit.MILLISECONDS); pool.shutdownNow()
             if (token != scanToken) return@execute
 
             val uniqueIps = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
@@ -1480,12 +1532,11 @@ class MainActivity : Activity() {
     }
 
     private fun openTls(h: String, port: Int, id: Identity, readTimeoutMs: Int): Conn {
-        val ctx = SSLContext.getInstance("TLSv1.2").apply { init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null) }
+        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null) }
         val s = (ctx.socketFactory.createSocket() as SSLSocket).apply {
-            enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
             tcpNoDelay = true
             soTimeout = readTimeoutMs
-            connect(InetSocketAddress(h, port), 3500)
+            connect(InetSocketAddress(h, port), 4500)
             startHandshake()
         }
         return Conn(s)
@@ -1505,20 +1556,33 @@ class MainActivity : Activity() {
         val h = ipBox.text.toString().trim()
         if (!isValidIpv4(h)) { uiState(StatusState.ENTER_IP, cRedStroke); return }
         host = h
-        val oldPair = pairConn
-        pairConn = null
+        val oldPair: Conn? = synchronized(pairLock) {
+            val prev = pairConn
+            pairConn = null
+            pairServerCert = null
+            prev
+        }
         fastIo.execute { oldPair?.close() }
         uiState(StatusState.PAIRING_START, cAccentStroke)
         fastIo.execute {
             try {
-                val c = openTls(h, 6467, identity(), 8000)
-                pairServerCert = c.sock.session.peerCertificates[0] as X509Certificate
+                val c = openTls(h, 6467, identity(), 12000)
+                val cert = c.sock.session.peerCertificates.firstOrNull() as? X509Certificate
+                    ?: throw IllegalStateException("TV sertifikası alınamadı")
                 c.send(Pb.int(1, 2) + Pb.bytes(10, Pb.str(1, "atvremote") + Pb.str(2, "Android TV Remote"))); expect(c, 11)
                 c.send(Pb.int(1, 2) + Pb.bytes(20, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(3, 1))); expect(c, 20)
                 c.send(Pb.int(1, 2) + Pb.bytes(30, Pb.bytes(1, Pb.int(1, 3) + Pb.int(2, 6)) + Pb.int(2, 1))); expect(c, 31)
-                pairConn = c; runOnUiThread { codeRow.visibility = View.VISIBLE }; uiState(StatusState.ENTER_CODE, cAccentStroke)
+                synchronized(pairLock) {
+                    pairConn = c
+                    pairServerCert = cert
+                }
+                runOnUiThread { codeRow.visibility = View.VISIBLE }
+                uiState(StatusState.ENTER_CODE, cAccentStroke)
             } catch (e: Exception) {
-                pairConn = null
+                synchronized(pairLock) {
+                    pairConn = null
+                    pairServerCert = null
+                }
                 uiState(StatusState.PAIRING_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName)
             }
         }
@@ -1533,18 +1597,36 @@ class MainActivity : Activity() {
                 if (!hexPart.all { it in '0'..'9' || it in 'A'..'F' }) {
                     throw IllegalArgumentException("Geçersiz kod formatı")
                 }
-                val c = pairConn ?: throw IllegalStateException("Eşleştirme oturumu açık değil")
-                val serverCert = pairServerCert ?: throw IllegalStateException("TV sertifikası alınamadı")
-                val id = identity(); val clientPub = id.cert.publicKey as RSAPublicKey; val serverPub = serverCert.publicKey as RSAPublicKey
+                val (c, serverCert) = synchronized(pairLock) {
+                    val conn = pairConn ?: throw IllegalStateException("Eşleştirme oturumu açık değil")
+                    val cert = pairServerCert ?: throw IllegalStateException("TV sertifikası alınamadı")
+                    conn to cert
+                }
+                val id = identity()
+                val clientPub = id.cert.publicKey as RSAPublicKey
+                val serverPub = serverCert.publicKey as RSAPublicKey
                 val secret = MessageDigest.getInstance("SHA-256").apply {
                     update(clientPub.modulus.unsigned()); update(clientPub.publicExponent.unsigned())
                     update(serverPub.modulus.unsigned()); update(serverPub.publicExponent.unsigned()); update(hexToBytes(hexPart))
                 }.digest()
-                c.send(outer(40, Pb.bytes(1, secret))); expect(c, 41); c.close(); pairConn = null; manualDisconnect = false
+                c.send(outer(40, Pb.bytes(1, secret)))
+                expect(c, 41)
+                c.close()
+                synchronized(pairLock) {
+                    if (pairConn === c) {
+                        pairConn = null
+                        pairServerCert = null
+                    }
+                }
+                manualDisconnect = false
                 getSharedPreferences("tv", MODE_PRIVATE).edit().putBoolean("paired", true).apply()
-                runOnUiThread { codeRow.visibility = View.GONE }; uiState(StatusState.PAIRED_CONNECTING, cAccentStroke)
-                connectRemote(); runOnUiThread { show(0) }
-            } catch (e: Exception) { uiState(StatusState.CODE_REJECTED, cRedStroke, e.message ?: e.javaClass.simpleName) }
+                runOnUiThread { codeRow.visibility = View.GONE }
+                uiState(StatusState.PAIRED_CONNECTING, cAccentStroke)
+                connectRemote()
+                runOnUiThread { show(0) }
+            } catch (e: Exception) {
+                uiState(StatusState.CODE_REJECTED, cRedStroke, e.message ?: e.javaClass.simpleName)
+            }
         }
     }
 
@@ -1558,14 +1640,27 @@ class MainActivity : Activity() {
         }
     }
 
-    @Synchronized
     private fun connectRemote() {
-        ready = false; remote?.close()
-        val c = openTls(host, 6466, identity(), 0); remote = c; connectedHost = host
-        fastIo.execute { readerLoop(c) }; waitReady()
+        synchronized(connectLock) {
+            ready = false
+            val old = remote
+            remote = null
+            old?.close()
+            val c = openTls(host, 6466, identity(), 0)
+            remote = c
+            connectedHost = host
+            fastIo.execute { readerLoop(c) }
+            waitReady()
+        }
     }
 
-    private fun waitReady() { var waited = 0; while (!ready && waited < 1200) { Thread.sleep(10); waited += 10 } }
+    private fun waitReady() {
+        var waited = 0
+        while (!ready && waited < 3500) {
+            Thread.sleep(15)
+            waited += 15
+        }
+    }
 
     private fun configureReply(): ByteArray {
         val info = Pb.str(1, "model") + Pb.str(2, "vendor") + Pb.int(3, 1) + Pb.str(4, "1") + Pb.str(5, "androidtv-remote") + Pb.str(6, "1.0.0")
@@ -1580,12 +1675,21 @@ class MainActivity : Activity() {
                         1 -> c.send(configureReply())
                         2 -> c.send(Pb.bytes(2, Pb.int(1, 622)))
                         8 -> c.send(Pb.bytes(9, Pb.int(1, (Pb.parse(f.data).firstOrNull { it.num == 1 }?.number ?: 0L).toInt())))
-                        40 -> { ready = true; uiState(StatusState.CONNECTED, cGreen); if (scanModalOpen && scannedIps.isNotEmpty()) runOnUiThread { rebuildFoundTvCards() } }
+                        40 -> {
+                            ready = true
+                            uiState(StatusState.CONNECTED, cGreen)
+                            if (scanModalOpen && scannedIps.isNotEmpty()) runOnUiThread { rebuildFoundTvCards() }
+                        }
                     }
                 }
             }
-        } catch (_: Exception) {
-            if (remote === c) { remote = null; ready = false; connectedHost = null; if (!manualDisconnect) uiState(StatusState.LOST, cRedStroke) }
+        } catch (e: Exception) {
+            if (remote === c) {
+                remote = null; ready = false; connectedHost = null
+                if (!manualDisconnect) {
+                    uiState(StatusState.LOST, cRedStroke, e.message ?: e.javaClass.simpleName)
+                }
+            }
         }
     }
 
@@ -1594,13 +1698,35 @@ class MainActivity : Activity() {
         if (effectiveHost.isNotBlank() && host.isBlank()) host = effectiveHost
         val msg = Pb.bytes(10, Pb.int(1, code) + Pb.int(2, 3))
         val c = remote
-        if (c != null) { try { c.send(msg); return } catch (_: Exception) { remote = null; ready = false } }
+        if (c != null) {
+            try {
+                c.send(msg)
+                return
+            } catch (_: Exception) {
+                remote = null; ready = false
+            }
+        }
         if (!isValidIpv4(effectiveHost)) throw IllegalStateException(t(StatusState.ENTER_IP.name))
-        if (!reconnecting) { reconnecting = true; try { connectRemote() } finally { reconnecting = false } } else waitReady()
+        synchronized(connectLock) {
+            if (remote == null || !ready) {
+                connectRemote()
+            }
+        }
         (remote ?: throw IllegalStateException(t(StatusState.CONNECT_FAILED.name))).send(msg)
     }
 
-    private fun sendKey(code: Int) = fastIo.execute { try { writeKey(code) } catch (e: Exception) { uiState(StatusState.SEND_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName) } }
+    private fun sendKey(code: Int) = fastIo.execute {
+        try { writeKey(code) }
+        catch (e: Exception) { uiState(StatusState.SEND_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName) }
+    }
 
-    override fun onDestroy() { super.onDestroy(); pulseAnim?.cancel(); pulseAnim = null; scanToken++; pairConn?.close(); remote?.close(); fastIo.shutdownNow() }
+    override fun onDestroy() {
+        super.onDestroy()
+        pulseAnim?.cancel(); pulseAnim = null
+        scanToken++
+        val p = pairConn; val r = remote
+        pairConn = null; pairServerCert = null; remote = null; ready = false
+        p?.close(); r?.close()
+        fastIo.shutdownNow()
+    }
 }
