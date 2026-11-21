@@ -856,7 +856,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
-            step = "başlangıç"
+            step = "1-prefs"
             dp = resources.displayMetrics.density.coerceAtLeast(0.75f)
             sp = resources.displayMetrics.scaledDensity.coerceAtLeast(0.75f)
             val prefs = getSharedPreferences("tv", MODE_PRIVATE)
@@ -869,11 +869,13 @@ class MainActivity : Activity() {
             lastStatusState = if (paired) StatusState.DISCONNECTED else StatusState.ENTER_IP
             lastStatusDotColor = cMuted
 
+            step = "2-ipBox/codeBox"
             ipBox = styledEdit("192.168.1.105", 17f, 18, 15, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 12)).apply { setText(prefs.getString("ip", "")) }
             codeBox = styledEdit(t("codeHint"), 16f, 16, 14, lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 10, 0))
             confirmPairBtnView = Button(this).apply { text = t("confirm"); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(54)); setOnClickListener { tap(v = this); finishPairing(codeBox.text.toString()) } }
             codeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE; setPadding(0, px(12), 0, 0); addView(codeBox); addView(confirmPairBtnView) }
 
+            step = "3-status/power"
             statusDot = View(this).apply { layoutParams = lp(px(10), px(10), 0f, 0, 0, 10, 0); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cMuted) } }
             status = TextView(this).apply { text = formatStatus(lastStatusState, null); setTextColor(cSubtext); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f)); setSingleLine() }
 
@@ -903,11 +905,13 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(72), 0f, 0, 8, 0, 4)
                 addView(roundActionKey("←", 4, 68)); addView(View(this@MainActivity).apply { layoutParams = lp(px(36), px(1)) }); addView(roundActionKey("⌂", 3, 68))
             }
+            step = "4-remote ekranı"
             screens.add(LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; visibility = View.GONE; setPadding(px(14), px(6), px(14), px(8))
                 addView(remoteHeaderRow); addView(volumeRow); addView(dpadWheelView); addView(bottomKeysRow)
             })
 
+            step = "5-connect ekranı"
             connectBtnView = Button(this).apply {
                 text = t("connect"); layoutParams = lp(0, px(58), 1f, 0, 0, 6, 0)
                 setOnClickListener { tap(v = this); manualDisconnect = false; prefs.edit().putString("ip", ipBox.text.toString().trim()).apply(); if (prefs.getBoolean("paired", false)) connectClicked() else startPairing() }
@@ -923,6 +927,7 @@ class MainActivity : Activity() {
                 addView(tvIpTitleView); addView(ipBox); addView(row(connectBtnView, openSettingsBtnView).apply { layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT) }); addView(scanTvBtnView); addView(codeRow)
             }
 
+            step = "6-dropdownlar"
             fun makeDropdownContainer() = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
@@ -975,6 +980,7 @@ class MainActivity : Activity() {
                 setOnClickListener { tap(v = this); prefs.edit().putBoolean("paired", false).apply(); manualDisconnect = true; pairConn?.close(); pairConn = null; remote?.close(); remote = null; connectedHost = null; ready = false; codeRow.visibility = View.GONE; uiState(StatusState.PAIR_RESET, cMuted); updateRemoteHeaderIndicator() }
             }
             contactUsBtnView = Button(this).apply { text = t("contactUs"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 8, 0, 0); setOnClickListener { tap(v = this); openInstagram() } }
+            step = "7-settings kartı"
             settingsTitleView = sectionTitle(t("settings"), 17.5f, 6)
 
             settingsCardView = LinearLayout(this).apply {
@@ -997,26 +1003,28 @@ class MainActivity : Activity() {
                 })
             })
 
+            step = "8-rootView"
             topBarView = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(px(16), px(11), px(16), px(11)); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 14, 2, 14, 6); addView(statusDot); addView(status) }
             val content = FrameLayout(this).apply { layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f); for (sc in screens) addView(sc, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)) }
             val bottomNav = row(nav(t("tabRemote"), 0), nav(t("tabConnect"), 1)).apply { setPadding(px(8), px(2), px(8), px(4)) }
             rootView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(px(4), px(26), px(4), px(6)); addView(topBarView); addView(content); addView(bottomNav) }
 
+            step = "9-scan modal"
             buildScanModal(prefs)
             val shell = FrameLayout(this).apply {
                 addView(rootView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
                 addView(scanBackdropView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             }
 
-            step = "ağaç kontrolü"
+            step = "10-ağaç kontrolü"
             findCycle(shell)?.let { throw IllegalStateException(it) }
-            step = "setContentView"
+            step = "11-setContentView"
             setContentView(shell)
-            step = "applyPalette"
+            step = "12-applyPalette"
 
             currentScreen = if (paired && ipBox.text.isNotBlank()) 0 else 1
             applyPalette(paletteIndex, switchTab = true)
-            step = "connectClicked"
+            step = "13-connectClicked"
             if (currentScreen == 0 && autoConnectEnabled) connectClicked()
         } catch (e: Throwable) {
             setContentView(TextView(this).apply {
