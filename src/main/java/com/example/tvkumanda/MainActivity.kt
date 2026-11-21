@@ -1034,7 +1034,6 @@ class MainActivity : Activity() {
                 addView(roundIconKey(IconKind.HOME, 86) { sendKey(3) })
             }
 
-            // Ekran 0: Kumanda
             screens.add(LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; visibility = View.GONE; setPadding(px(14), px(6), px(14), px(6))
                 addView(remoteHeaderRow)
@@ -1044,7 +1043,6 @@ class MainActivity : Activity() {
                 addView(bottomKeysRow)
             })
 
-            // Ekran 1: Bağlantı
             connectBtnView = Button(this).apply {
                 text = t("connect"); layoutParams = lp(0, px(58), 1f, 0, 0, 6, 0)
                 setOnClickListener { tap(v = this); manualDisconnect = false; prefs.edit().putString("ip", ipBox.text.toString().trim()).apply(); if (prefs.getBoolean("paired", false)) connectClicked() else startPairing() }
@@ -1066,7 +1064,6 @@ class MainActivity : Activity() {
                 })
             })
 
-            // Ekran 2: Ayarlar
             fun makeDropdownContainer() = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
@@ -1141,7 +1138,6 @@ class MainActivity : Activity() {
                 })
             })
 
-            // Ekran 3: Güncellemeler (Sürüm Notları)
             updatesTitleView = sectionTitle(t("updatesTitle"), 18f, 10)
             updatesListContainer = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1330,10 +1326,7 @@ class MainActivity : Activity() {
     private fun row(vararg views: View) = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; for (v in views) addView(v) }
 
     private fun roundIconKey(kind: IconKind, sizeDp: Int, onClick: () -> Unit): RemoteIconButton {
-        val btn = RemoteIconButton(this, kind) {
-            tap(v = itViewOrSelf(this))
-            onClick()
-        }.apply {
+        val btn = RemoteIconButton(this, kind) {}.apply {
             layoutParams = lp(px(sizeDp), px(sizeDp))
             applyPressAnim(this)
         }
@@ -1341,8 +1334,6 @@ class MainActivity : Activity() {
         roundIconBtns.add(btn)
         return btn
     }
-
-    private fun itViewOrSelf(v: View): View = v
 
     private fun uiState(state: StatusState, dotColor: Int, detail: String? = null) = runOnUiThread {
         lastStatusState = state; lastStatusDetail = detail; lastStatusDotColor = dotColor
