@@ -553,7 +553,7 @@ class MainActivity : Activity() {
     private lateinit var langHeaderRow: LinearLayout; private lateinit var langHeaderLabel: TextView; private lateinit var langHeaderValue: TextView; private lateinit var langOptionsContainer: LinearLayout
 
     private lateinit var scanBackdropView: FrameLayout; private lateinit var scanDialogCardView: LinearLayout; private lateinit var scanIconBadge: TextView
-    private lateinit var scanTitleView: TextView; private lateinit var scanCloseBtn: Button; private lateinit var scanProgressBar: ProgressBar
+    private lateinit var scanTitleView: TextView; private lateinit var scanCloseBtn: Button; private lateinit var scanIndicatorView: View
     private lateinit var scanMessageView: TextView; private lateinit var scanResultsContainer: LinearLayout
     private lateinit var scanTroublesBtn: TextView; private lateinit var scanTroublesTipView: TextView
 
@@ -757,6 +757,7 @@ class MainActivity : Activity() {
         for (btn in roundActionBtns) styleBtn(btn, cBtn, cBtnStroke, cText, 19f, circle = true)
 
         scanDialogCardView.background = makeCardBg(cCard, cBtnStroke, 26)
+        (scanIndicatorView.background as? GradientDrawable)?.setColor(cAccentStroke)
         for (tv in listOf(scanIconBadge, scanTitleView)) tv.setTextColor(cText)
         for (tv in listOf(scanCloseBtn, scanMessageView, scanTroublesBtn, scanTroublesTipView)) tv.setTextColor(cSubtext)
         scanTroublesTipView.background = makeCardBg(cSurface, cBtnStroke, 14)
@@ -778,7 +779,22 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun closeScanModal() { scanToken++; scanInProgress = false; scanModalOpen = false; scanBackdropView.visibility = View.GONE }
+    private fun setScanBusy(busy: Boolean) {
+        scanInProgress = busy
+        scanIndicatorView.visibility = if (busy) View.VISIBLE else View.GONE
+        if (busy) {
+            scanIndicatorView.animate().cancel()
+            scanIndicatorView.alpha = 1f
+            scanIndicatorView.animate().alpha(0.25f).setDuration(550L).withEndAction {
+                if (scanInProgress && scanModalOpen) setScanBusy(true)
+            }.start()
+        } else {
+            scanIndicatorView.animate().cancel()
+            scanIndicatorView.alpha = 1f
+        }
+    }
+
+    private fun closeScanModal() { scanToken++; setScanBusy(false); scanModalOpen = false; scanBackdropView.visibility = View.GONE }
 
     private fun disconnectTv() {
         manualDisconnect = true; ready = false; connectedHost = null
@@ -805,9 +821,10 @@ class MainActivity : Activity() {
             text = t("scanSearching"); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14.5f)); setLineSpacing(px(3).toFloat(), 1.1f)
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 14)
         }
-        scanProgressBar = ProgressBar(this).apply {
-            isIndeterminate = true
-            layoutParams = LinearLayout.LayoutParams(px(36), px(36)).apply { gravity = Gravity.CENTER_HORIZONTAL; setMargins(0, px(4), 0, px(14)) }
+        scanIndicatorView = View(this).apply {
+            visibility = View.GONE
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cAccentStroke) }
+            layoutParams = LinearLayout.LayoutParams(px(18), px(18)).apply { gravity = Gravity.CENTER_HORIZONTAL; setMargins(0, px(4), 0, px(14)) }
         }
         scanResultsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
@@ -826,7 +843,7 @@ class MainActivity : Activity() {
         scanDialogCardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(px(20), px(20), px(20), px(20))
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply { setMargins(px(24), px(24), px(24), px(24)) }
-            addView(header); addView(scanMessageView); addView(scanProgressBar)
+            addView(header); addView(scanMessageView); addView(scanIndicatorView)
             addView(scanResultsContainer); addView(scanTroublesTipView)
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL
@@ -1099,11 +1116,11 @@ class MainActivity : Activity() {
 
         val prefix = getLocalSubnetPrefix()
         if (prefix == null) {
-            scanInProgress = false; scanProgressBar.visibility = View.GONE; scanMessageView.text = t(StatusState.SCAN_NO_WIFI.name)
+            setScanBusy(false); scanMessageView.text = t(StatusState.SCAN_NO_WIFI.name)
             uiState(StatusState.SCAN_NO_WIFI, cRedStroke); return
         }
 
-        scanInProgress = true; scanProgressBar.visibility = View.VISIBLE; scanMessageView.text = t("scanSearching")
+        setScanBusy(true); scanMessageView.text = t("scanSearching")
         uiState(StatusState.SCANNING, cAccentStroke)
 
         fastIo.execute {
@@ -1133,7 +1150,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 if (token != scanToken) return@runOnUiThread
                 scannedIps.clear(); scannedIps.addAll(uniqueIps); rebuildFoundTvCards()
-                scanInProgress = false; scanProgressBar.visibility = View.GONE
+                setScanBusy(false)
                 if (uniqueIps.isEmpty()) { scanMessageView.text = t(StatusState.SCAN_NONE.name); uiState(StatusState.SCAN_NONE, cRedStroke) }
                 else { scanMessageView.text = "${t(StatusState.SCAN_FOUND.name)} (${uniqueIps.size})"; uiState(StatusState.SCAN_FOUND, cGreen, uniqueIps.first()) }
             }
