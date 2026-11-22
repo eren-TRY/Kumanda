@@ -924,9 +924,7 @@ class MainActivity : Activity() {
         styleBtn(contactUsBtnView, cBtn, cAccentStroke, cText, 14.5f, 16)
 
         applyTextsAndState()
-        if (switchTab) {
-            show(currentScreen)
-        }
+        if (switchTab) show(currentScreen)
     }
 
     private fun setScanBusy(busy: Boolean) {
@@ -1537,6 +1535,7 @@ class MainActivity : Activity() {
     private fun openTls(h: String, port: Int, id: Identity, readTimeoutMs: Int): Conn {
         val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null) }
         val s = (ctx.socketFactory.createSocket() as SSLSocket).apply {
+            useClientMode = true
             tcpNoDelay = true
             soTimeout = readTimeoutMs
             connect(InetSocketAddress(h, port), 4500)
@@ -1559,6 +1558,7 @@ class MainActivity : Activity() {
         val h = ipBox.text.toString().trim()
         if (!isValidIpv4(h)) { uiState(StatusState.ENTER_IP, cRedStroke); return }
         host = h
+        runOnUiThread { codeRow.visibility = View.GONE }
         val oldPair: Conn? = synchronized(pairLock) {
             val prev = pairConn
             pairConn = null
@@ -1624,11 +1624,17 @@ class MainActivity : Activity() {
                 manualDisconnect = false
                 getSharedPreferences("tv", MODE_PRIVATE).edit().putBoolean("paired", true).apply()
                 runOnUiThread { codeRow.visibility = View.GONE }
-                uiState(StatusState.PAIRED_CONNECTING, cAccentStroke)
+            } catch (e: Exception) {
+                uiState(StatusState.CODE_REJECTED, cRedStroke, e.message ?: e.javaClass.simpleName)
+                return@execute
+            }
+
+            uiState(StatusState.PAIRED_CONNECTING, cAccentStroke)
+            try {
                 connectRemote()
                 runOnUiThread { show(0) }
             } catch (e: Exception) {
-                uiState(StatusState.CODE_REJECTED, cRedStroke, e.message ?: e.javaClass.simpleName)
+                uiState(StatusState.CONNECT_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName)
             }
         }
     }
