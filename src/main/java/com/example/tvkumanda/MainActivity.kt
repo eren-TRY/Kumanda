@@ -538,7 +538,7 @@ private val stringsMap = mapOf(
         "scanTroubles" to "Bağlantı sorunları?",
         "scanTroublesTip" to "Telefon ve TV aynı Wi-Fi ağında olmalı ve cihaz izolasyonu kapalı olmalıdır. Bulunamazsa IP'yi elle girin.",
         "disconnect" to "Bağlantıyı Kes", "tvDeviceFallback" to "Android TV",
-        StatusState.DISCONNECTED.name to "Bağlı değil", StatusState.ENTER_IP.name to "Geçerli bir TV IP adresi yaz (ör. 192.168.1.106)",
+        StatusState.DISCONNECTED.name to "Bağlı değil", StatusState.ENTER_IP.name to "Geçerli bir TV IP adresi yaz (ör. 192.168.0.42)",
         StatusState.PAIRING_START.name to "Eşleştirme başlıyor…", StatusState.ENTER_CODE.name to "TV'deki 6 haneli kodu yazıp Onayla'ya bas",
         StatusState.PAIRING_FAILED.name to "Eşleştirme başarısız", StatusState.CODE_LENGTH.name to "Kod 6 karakter olmalı",
         StatusState.CODE_REJECTED.name to "Kod kabul edilmedi", StatusState.PAIRED_CONNECTING.name to "Eşleşti — Bağlanıyor…",
@@ -568,7 +568,7 @@ private val stringsMap = mapOf(
         "scanTroubles" to "Connection troubles?",
         "scanTroublesTip" to "Keep phone and TV on the same Wi-Fi without AP isolation, or enter the TV IP manually.",
         "disconnect" to "Disconnect", "tvDeviceFallback" to "Android TV",
-        StatusState.DISCONNECTED.name to "Disconnected", StatusState.ENTER_IP.name to "Enter a valid TV IPv4 address (e.g. 192.168.1.106)",
+        StatusState.DISCONNECTED.name to "Disconnected", StatusState.ENTER_IP.name to "Enter a valid TV IPv4 address (e.g. 192.168.0.42)",
         StatusState.PAIRING_START.name to "Starting pairing…", StatusState.ENTER_CODE.name to "Enter the 6-digit code on TV and tap Confirm",
         StatusState.PAIRING_FAILED.name to "Pairing failed", StatusState.CODE_LENGTH.name to "Code must be 6 characters",
         StatusState.CODE_REJECTED.name to "Code rejected", StatusState.PAIRED_CONNECTING.name to "Paired — Connecting…",
@@ -1127,7 +1127,7 @@ class MainActivity : Activity() {
             lastStatusDotColor = cMuted
 
             step = "giriş ve durum bileşenleri"
-            ipBox = styledEdit("192.168.1.106", 17f, 18, 15, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 12)).apply { setText(prefs.getString("ip", "")) }
+            ipBox = styledEdit("192.168.0.42", 17f, 18, 15, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 12)).apply { setText(prefs.getString("ip", "")) }
             codeBox = styledEdit(t("codeHint"), 16f, 16, 14, lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 10, 0))
             confirmPairBtnView = Button(this).apply { text = t("confirm"); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(54)); setOnClickListener { tap(v = this); finishPairing(codeBox.text.toString()) } }
             codeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE; setPadding(0, px(12), 0, 0); addView(codeBox); addView(confirmPairBtnView) }
