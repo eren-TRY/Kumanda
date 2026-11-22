@@ -447,6 +447,20 @@ private data class ReleaseNote(val version: String, val changes: List<String>)
 private val releaseNotesMap = mapOf(
     "tr" to listOf(
         ReleaseNote(
+            "v1.7",
+            listOf(
+                "Bağlantı koptuğunda otomatik yeniden bağlanma ve soket temizleme akışı iyileştirildi.",
+                "Hata mesajlarının daha net okunabilmesi için durum satırı genişletildi."
+            )
+        ),
+        ReleaseNote(
+            "v1.6",
+            listOf(
+                "Eşleştirme ve kumanda oturumu kararlılığı, zaman aşımı temizliği ve hata yönetimi iyileştirildi.",
+                "Ağ taraması iptal/yenileme akışı ve açılış kurtarma ekranı geliştirildi."
+            )
+        ),
+        ReleaseNote(
             "v1.5",
             listOf(
                 "iPhone tarzı ayarlar dişlisi sadece Bağlantı ekranının sol altına eklendi.",
@@ -468,6 +482,20 @@ private val releaseNotesMap = mapOf(
         )
     ),
     "en" to listOf(
+        ReleaseNote(
+            "v1.7",
+            listOf(
+                "Improved automatic reconnection on connection loss and socket cleanup flow.",
+                "Expanded status line for clearer error readability."
+            )
+        ),
+        ReleaseNote(
+            "v1.6",
+            listOf(
+                "Improved pairing and remote session stability, timeout cleanup, and error handling.",
+                "Enhanced network scan cancellation/refresh flow and startup recovery screen."
+            )
+        ),
         ReleaseNote(
             "v1.5",
             listOf(
@@ -500,7 +528,7 @@ private val stringsMap = mapOf(
         "autoOn" to "Oto Bağlan: Açık", "autoOff" to "Oto Bağlan: Kapalı",
         "resetPair" to "Eşleştirmeyi Sıfırla", "contactUs" to "Bize Ulaşın",
         "contactOptionsTitle" to "İletişim Seçenekleri", "openInstagram" to "Instagram", "close" to "Kapat",
-        "linkOpenFailed" to "Bağlantı açılamadı",
+        "linkOpenFailed" to "Bağlantı açılamadı", "retry" to "Tekrar Dene",
         "vibOff" to "Kapalı", "vibLight" to "Hafif", "vibMed" to "Orta", "vibStrong" to "Güçlü",
         "sizeSmall" to "Küçük", "sizeMedium" to "Orta", "sizeLarge" to "Büyük",
         "palBlue" to "Mavi", "palEmerald" to "Zümrüt", "palPurple" to "Mor",
@@ -530,7 +558,7 @@ private val stringsMap = mapOf(
         "autoOn" to "Auto Connect: On", "autoOff" to "Auto Connect: Off",
         "resetPair" to "Reset Pairing", "contactUs" to "Contact Us",
         "contactOptionsTitle" to "Contact Options", "openInstagram" to "Instagram", "close" to "Close",
-        "linkOpenFailed" to "Could not open link",
+        "linkOpenFailed" to "Could not open link", "retry" to "Retry",
         "vibOff" to "Off", "vibLight" to "Light", "vibMed" to "Medium", "vibStrong" to "Strong",
         "sizeSmall" to "Small", "sizeMedium" to "Medium", "sizeLarge" to "Large",
         "palBlue" to "Blue", "palEmerald" to "Emerald", "palPurple" to "Purple",
@@ -560,6 +588,7 @@ class MainActivity : Activity() {
     @Volatile private var remote: Conn? = null
     @Volatile private var ready = false
     @Volatile private var manualDisconnect = false
+    @Volatile private var isActivityActive = true
     @Volatile private var scanToken = 0
     @Volatile private var pairConn: Conn? = null
     @Volatile private var pairServerCert: X509Certificate? = null
@@ -1057,9 +1086,32 @@ class MainActivity : Activity() {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(sizeSp)); setPadding(px(2), 0, 0, px(padB))
     }
 
+    private fun renderCrashScreen(savedInstanceState: Bundle?, e: Throwable) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.BLACK)
+            setPadding(36, 64, 36, 36)
+            addView(TextView(this@MainActivity).apply {
+                text = "Açılış hatası [adım: $step]\n${e.javaClass.simpleName}: ${e.message ?: ""}"
+                setTextColor(Color.WHITE)
+                textSize = 13f
+                setPadding(0, 0, 0, 24)
+            })
+            addView(Button(this@MainActivity).apply {
+                text = t("retry")
+                setOnClickListener { recreate() }
+            })
+        }
+        setContentView(box)
+        if (savedInstanceState != null) {
+            step = "yeniden deneme"
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        isActivityActive = true
         try {
             step = "tercihler"
             dp = resources.displayMetrics.density.coerceAtLeast(0.75f)
@@ -1085,7 +1137,7 @@ class MainActivity : Activity() {
                 text = formatStatus(lastStatusState, null)
                 setTextColor(cSubtext)
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13f))
-                maxLines = 4
+                maxLines = 6
                 setLineSpacing(px(2).toFloat(), 1.1f)
                 layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
@@ -1316,11 +1368,13 @@ class MainActivity : Activity() {
             show(currentScreen)
             if (currentScreen == 0 && autoConnectEnabled) connectClicked()
         } catch (e: Throwable) {
-            setContentView(TextView(this).apply {
-                text = "Açılış hatası [adım: $step]\n${e.javaClass.simpleName}: ${e.message}"
-                setTextColor(Color.WHITE); setBackgroundColor(Color.BLACK); setPadding(36, 64, 36, 36); textSize = 12f
-            })
+            renderCrashScreen(savedInstanceState, e)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        isActivityActive = true
     }
 
     @Deprecated("Deprecated in Java")
@@ -1456,12 +1510,12 @@ class MainActivity : Activity() {
             val pool = Executors.newFixedThreadPool(24)
             try {
                 for (lastOctet in 1..254) {
-                    if (token != scanToken) { latch.countDown(); continue }
+                    if (token != scanToken || !isActivityActive) { latch.countDown(); continue }
                     pool.execute {
                         try {
-                            if (token == scanToken) {
+                            if (token == scanToken && isActivityActive) {
                                 val candidate = "$prefix.$lastOctet"
-                                if ((isTvPortOpen(candidate, 6466, 220) || isTvPortOpen(candidate, 6467, 220)) && !found.contains(candidate)) {
+                                if ((isTvPortOpen(candidate, 6466, 220) || isTvPortOpen(candidate, 6467, 220)) && token == scanToken && !found.contains(candidate)) {
                                     found.add(candidate)
                                     val sortedNow = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
                                     runOnUiThread {
@@ -1476,11 +1530,11 @@ class MainActivity : Activity() {
             } finally {
                 pool.shutdownNow()
             }
-            if (token != scanToken) return@execute
+            if (token != scanToken || !isActivityActive) return@execute
 
             val uniqueIps = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
             runOnUiThread {
-                if (token != scanToken) return@runOnUiThread
+                if (token != scanToken || !isActivityActive) return@runOnUiThread
                 scannedIps.clear(); scannedIps.addAll(uniqueIps); rebuildFoundTvCards()
                 setScanBusy(false)
                 if (uniqueIps.isEmpty()) { scanMessageView.text = t(StatusState.SCAN_NONE.name); uiState(StatusState.SCAN_NONE, cRedStroke) }
@@ -1548,8 +1602,9 @@ class MainActivity : Activity() {
 
     private fun expect(c: Conn, field: Int) {
         while (true) {
-            val m = Pb.parse(c.read()); val st = m.firstOrNull { it.num == 2 }?.number
-            if (st != null && st != 200L) throw IllegalStateException("TV eşleştirmeyi reddetti ($st)")
+            val m = Pb.parse(c.read())
+            val st = m.firstOrNull { it.num == 2 }?.number
+            if (st != null && st != 200L && st != 0L) throw IllegalStateException("TV eşleştirmeyi reddetti ($st)")
             if (m.any { it.num == field }) return
         }
     }
@@ -1702,8 +1757,19 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             if (remote === c) {
                 remote = null; ready = false; connectedHost = null
-                if (!manualDisconnect) {
+                if (!manualDisconnect && isActivityActive) {
                     uiState(StatusState.LOST, cRedStroke, e.message ?: e.javaClass.simpleName)
+                    if (autoConnectEnabled && isValidIpv4(host)) {
+                        fastIo.execute {
+                            try {
+                                Thread.sleep(1200L)
+                                if (!manualDisconnect && isActivityActive && remote == null && isValidIpv4(host)) {
+                                    uiState(StatusState.CONNECTING, cAccentStroke)
+                                    connectRemote()
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    }
                 }
             }
         }
@@ -1745,8 +1811,15 @@ class MainActivity : Activity() {
         catch (e: Exception) { uiState(StatusState.SEND_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName) }
     }
 
+    override fun onStop() {
+        super.onStop()
+        isActivityActive = false
+        pulseAnim?.cancel()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        isActivityActive = false
         pulseAnim?.cancel(); pulseAnim = null
         scanToken++
         val p = pairConn; val r = remote
