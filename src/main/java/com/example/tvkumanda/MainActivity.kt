@@ -301,20 +301,20 @@ private class RemoteIconButton(
 
     private fun drawSpeakerBody(canvas: Canvas, cx: Float, cy: Float, u: Float) {
         speakerPath.reset()
-        speakerPath.moveTo(cx - u * 0.64f, cy - u * 0.24f)
-        speakerPath.lineTo(cx - u * 0.28f, cy - u * 0.24f)
-        speakerPath.lineTo(cx + u * 0.16f, cy - u * 0.64f)
-        speakerPath.lineTo(cx + u * 0.16f, cy + u * 0.64f)
-        speakerPath.lineTo(cx - u * 0.28f, cy + u * 0.24f)
-        speakerPath.lineTo(cx - u * 0.64f, cy + u * 0.24f)
+        speakerPath.moveTo(cx - u * 0.68f, cy - u * 0.25f)
+        speakerPath.lineTo(cx - u * 0.28f, cy - u * 0.25f)
+        speakerPath.lineTo(cx + u * 0.16f, cy - u * 0.68f)
+        speakerPath.lineTo(cx + u * 0.16f, cy + u * 0.68f)
+        speakerPath.lineTo(cx - u * 0.28f, cy + u * 0.25f)
+        speakerPath.lineTo(cx - u * 0.68f, cy + u * 0.25f)
         speakerPath.close()
         canvas.drawPath(speakerPath, fillPaint)
     }
 
     private fun drawIosGear(canvas: Canvas, cx: Float, cy: Float, u: Float) {
         val teeth = 8
-        val rTip = u * 0.92f
-        val rRoot = u * 0.68f
+        val rTip = u * 0.94f
+        val rRoot = u * 0.70f
         val rInner = u * 0.30f
         gearPath.reset()
         val stepAngle = (2.0 * PI) / teeth
@@ -352,7 +352,7 @@ private class RemoteIconButton(
         val u = s * 0.25f
         strokePaint.color = iconColor
         fillPaint.color = iconColor
-        strokePaint.strokeWidth = maxOf(2.2f, s * 0.052f)
+        strokePaint.strokeWidth = maxOf(2.3f, s * 0.055f)
 
         when (kind) {
             IconKind.POWER -> {
@@ -362,30 +362,30 @@ private class RemoteIconButton(
                 canvas.drawLine(cx, cy - r * 0.36f, cx, cy + r * 0.08f, strokePaint)
             }
             IconKind.MUTE -> {
-                drawSpeakerBody(canvas, cx - u * 0.34f, cy, u * 0.88f)
-                val d = u * 0.62f
-                canvas.drawLine(cx - d * 0.22f, cy - d * 0.78f, cx + d * 0.96f, cy + d * 0.78f, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.36f, cy, u * 0.88f)
+                canvas.drawLine(cx + u * 0.24f, cy - u * 0.46f, cx + u * 0.86f, cy + u * 0.46f, strokePaint)
+                canvas.drawLine(cx + u * 0.86f, cy - u * 0.46f, cx + u * 0.24f, cy + u * 0.46f, strokePaint)
             }
             IconKind.VOL_DOWN -> {
-                drawSpeakerBody(canvas, cx - u * 0.26f, cy, u * 0.94f)
-                rect.set(cx - u * 0.10f, cy - u * 0.26f, cx + u * 0.24f, cy + u * 0.26f)
-                canvas.drawArc(rect, -45f, 90f, false, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.24f, cy, u * 0.92f)
+                rect.set(cx - u * 0.02f, cy - u * 0.24f, cx + u * 0.26f, cy + u * 0.24f)
+                canvas.drawArc(rect, -42f, 84f, false, strokePaint)
             }
             IconKind.VOL_UP -> {
-                drawSpeakerBody(canvas, cx - u * 0.36f, cy, u * 0.94f)
-                rect.set(cx - u * 0.18f, cy - u * 0.24f, cx + u * 0.14f, cy + u * 0.24f)
-                canvas.drawArc(rect, -45f, 90f, false, strokePaint)
-                rect.set(cx - u * 0.26f, cy - u * 0.42f, cx + u * 0.38f, cy + u * 0.42f)
-                canvas.drawArc(rect, -45f, 90f, false, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.34f, cy, u * 0.92f)
+                rect.set(cx - u * 0.12f, cy - u * 0.22f, cx + u * 0.14f, cy + u * 0.22f)
+                canvas.drawArc(rect, -42f, 84f, false, strokePaint)
+                rect.set(cx - u * 0.16f, cy - u * 0.38f, cx + u * 0.34f, cy + u * 0.38f)
+                canvas.drawArc(rect, -42f, 84f, false, strokePaint)
             }
             IconKind.BACK -> {
-                val a = u * 1.12f
+                val a = u * 1.14f
                 canvas.drawLine(cx - a * 0.78f, cy, cx + a * 0.78f, cy, strokePaint)
                 canvas.drawLine(cx - a * 0.78f, cy, cx - a * 0.14f, cy - a * 0.66f, strokePaint)
                 canvas.drawLine(cx - a * 0.78f, cy, cx - a * 0.14f, cy + a * 0.66f, strokePaint)
             }
             IconKind.HOME -> {
-                val a = u * 1.12f
+                val a = u * 1.14f
                 val roofPath = Path().apply {
                     moveTo(cx, cy - a * 0.86f)
                     lineTo(cx - a * 0.86f, cy - a * 0.06f)
@@ -1001,7 +1001,7 @@ class MainActivity : Activity() {
 
         styleBtn(scanTvBtnView, cAccent, cAccentStroke, cAccentText, 15f, 18)
         styleBtn(updatesBtnView, cBtn, cAccentStroke, cText, 14.5f, 18)
-        styleBtn(updatesBackBtnView, cBtn, cBtnStroke, cText, 14.5f, 18)
+        styleBtn(updatesBackBtnView, cBtn, cAccentStroke, cText, 14.5f, 18)
         styleBtn(connectBtnView, cAccent, cAccentStroke, cAccentText, 15.5f, 18)
         styleBtn(confirmPairBtnView, cAccent, cAccentStroke, cAccentText, 15f, 18)
         styleBtn(autoConnectBtn, if (autoConnectEnabled) cBtn else cCard, cBtnStroke, if (autoConnectEnabled) cText else cSubtext, 14f, 16)
@@ -1237,13 +1237,13 @@ class MainActivity : Activity() {
             val volumeRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 2, 0, 12)
-                addView(roundIconKey(IconKind.IOS_SETTINGS, 56) { sendKey(176) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
                 addView(roundIconKey(IconKind.MUTE, 56) { sendKey(164) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
                 addView(roundIconKey(IconKind.VOL_DOWN, 56) { sendKey(25) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
                 addView(roundIconKey(IconKind.VOL_UP, 56) { sendKey(24) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
+                addView(roundIconKey(IconKind.IOS_SETTINGS, 56) { sendKey(176) })
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
