@@ -362,20 +362,19 @@ private class RemoteIconButton(
                 canvas.drawLine(cx, cy - r * 0.36f, cx, cy + r * 0.08f, strokePaint)
             }
             IconKind.MUTE -> {
-                drawSpeakerBody(canvas, cx - u * 0.36f, cy, u * 0.88f)
-                canvas.drawLine(cx + u * 0.24f, cy - u * 0.46f, cx + u * 0.86f, cy + u * 0.46f, strokePaint)
-                canvas.drawLine(cx + u * 0.86f, cy - u * 0.46f, cx + u * 0.24f, cy + u * 0.46f, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.12f, cy, u * 0.90f)
+                canvas.drawLine(cx - u * 0.66f, cy - u * 0.56f, cx + u * 0.68f, cy + u * 0.56f, strokePaint)
             }
             IconKind.VOL_DOWN -> {
-                drawSpeakerBody(canvas, cx - u * 0.24f, cy, u * 0.92f)
-                rect.set(cx - u * 0.02f, cy - u * 0.24f, cx + u * 0.26f, cy + u * 0.24f)
+                drawSpeakerBody(canvas, cx - u * 0.22f, cy, u * 0.92f)
+                rect.set(cx + u * 0.02f, cy - u * 0.24f, cx + u * 0.26f, cy + u * 0.24f)
                 canvas.drawArc(rect, -42f, 84f, false, strokePaint)
             }
             IconKind.VOL_UP -> {
-                drawSpeakerBody(canvas, cx - u * 0.34f, cy, u * 0.92f)
-                rect.set(cx - u * 0.12f, cy - u * 0.22f, cx + u * 0.14f, cy + u * 0.22f)
+                drawSpeakerBody(canvas, cx - u * 0.32f, cy, u * 0.92f)
+                rect.set(cx - u * 0.08f, cy - u * 0.22f, cx + u * 0.16f, cy + u * 0.22f)
                 canvas.drawArc(rect, -42f, 84f, false, strokePaint)
-                rect.set(cx - u * 0.16f, cy - u * 0.38f, cx + u * 0.34f, cy + u * 0.38f)
+                rect.set(cx - u * 0.12f, cy - u * 0.38f, cx + u * 0.34f, cy + u * 0.38f)
                 canvas.drawArc(rect, -42f, 84f, false, strokePaint)
             }
             IconKind.BACK -> {
@@ -442,6 +441,13 @@ private data class ReleaseNote(val version: String, val changes: List<String>)
 private val releaseNotesMap = mapOf(
     "tr" to listOf(
         ReleaseNote(
+            "v1.9",
+            listOf(
+                "Tek sayfa kumanda yapısına geçildi; cihaz bağlanma seçici ve ayarlar dişlisi üst başlığa taşındı.",
+                "Sessiz ve ses tuşlarının işaret çizimleri ve sıralaması güncellendi."
+            )
+        ),
+        ReleaseNote(
             "v1.8",
             listOf(
                 "Wi-Fi ağına doğrudan soket bağlama (bindSocket) eklenerek mobil veri/VPN çakışması giderildi.",
@@ -454,23 +460,16 @@ private val releaseNotesMap = mapOf(
                 "Bağlantı koptuğunda otomatik yeniden bağlanma ve soket temizleme akışı iyileştirildi.",
                 "Hata mesajlarının daha net okunabilmesi için durum satırı genişletildi."
             )
-        ),
-        ReleaseNote(
-            "v1.6",
-            listOf(
-                "Eşleştirme ve kumanda oturumu kararlılığı, zaman aşımı temizliği ve hata yönetimi iyileştirildi.",
-                "Ağ taraması iptal/yenileme akışı ve açılış kurtarma ekranı geliştirildi."
-            )
-        ),
-        ReleaseNote(
-            "v1.5",
-            listOf(
-                "iPhone tarzı ayarlar dişlisi sadece Bağlantı ekranının sol altına eklendi.",
-                "Bize Ulaşın butonuna basıldığında açılan iletişim penceresi ve Instagram seçeneği eklendi."
-            )
         )
     ),
     "en" to listOf(
+        ReleaseNote(
+            "v1.9",
+            listOf(
+                "Switched to a single-page remote view with device selector and settings gear in the top bar.",
+                "Updated mute and volume icons and their order."
+            )
+        ),
         ReleaseNote(
             "v1.8",
             listOf(
@@ -484,27 +483,13 @@ private val releaseNotesMap = mapOf(
                 "Improved automatic reconnection on connection loss and socket cleanup flow.",
                 "Expanded status line for clearer error readability."
             )
-        ),
-        ReleaseNote(
-            "v1.6",
-            listOf(
-                "Improved pairing and remote session stability, timeout cleanup, and error handling.",
-                "Enhanced network scan cancellation/refresh flow and startup recovery screen."
-            )
-        ),
-        ReleaseNote(
-            "v1.5",
-            listOf(
-                "Added iPhone-style gear on Connection screen only, Contact Us sheet with Instagram, and socket/error improvements."
-            )
         )
     )
 )
 
 private val stringsMap = mapOf(
     "tr" to mapOf(
-        "tabRemote" to "Kumanda", "tabConnect" to "Bağlantı",
-        "power" to "Güç", "tvIp" to "TV IP Adresi", "scanTv" to "Ağda TV Ara", "settings" to "Ayarlar",
+        "tvIp" to "TV IP Adresi", "scanTv" to "Ağda TV Ara", "settings" to "Ayarlar",
         "updates" to "Güncellemeler", "updatesTitle" to "Sürüm Geçmişi ve Yenilikler", "back" to "Geri",
         "hapticLevel" to "Titreşim Şiddeti", "wheelSize" to "Orta Tuş Boyutu",
         "theme" to "Renk Paleti", "lang" to "Dil",
@@ -532,8 +517,7 @@ private val stringsMap = mapOf(
         StatusState.SCAN_FOUND.name to "TV bulundu", StatusState.SCAN_NONE.name to "Ağda TV bulunamadı"
     ),
     "en" to mapOf(
-        "tabRemote" to "Remote", "tabConnect" to "Connection",
-        "power" to "Power", "tvIp" to "TV IP Address", "scanTv" to "Find TV on Network", "settings" to "Settings",
+        "tvIp" to "TV IP Address", "scanTv" to "Find TV on Network", "settings" to "Settings",
         "updates" to "Updates", "updatesTitle" to "Version History & Changes", "back" to "Back",
         "hapticLevel" to "Haptic Strength", "wheelSize" to "Center Wheel Size",
         "theme" to "Color Palette", "lang" to "Language",
@@ -620,10 +604,11 @@ class MainActivity : Activity() {
     private lateinit var topBarView: LinearLayout
     private lateinit var dpadWheelView: DpadWheelView
     private lateinit var powerBtnView: RemoteIconButton
+    private lateinit var deviceSelectorBtn: LinearLayout
     private lateinit var remoteHeaderTvName: TextView
+    private lateinit var remoteHeaderChevron: TextView
     private lateinit var remoteHeaderDot: View
-    private lateinit var bottomLeftGearBtn: RemoteIconButton
-    private lateinit var connectCardView: LinearLayout
+    private lateinit var topRightGearBtn: RemoteIconButton
     private lateinit var manualIpSectionView: LinearLayout
     private lateinit var settingsCardView: LinearLayout
     private lateinit var updatesCardView: LinearLayout
@@ -661,7 +646,6 @@ class MainActivity : Activity() {
     private var dp = 1f; private var sp = 1f; private var currentScreen = 0
     private var step = "başlangıç"
 
-    private val navBtns = ArrayList<Button>()
     private val roundIconBtns = ArrayList<RemoteIconButton>()
     private val vibRows = ArrayList<Pair<Int, LinearLayout>>(); private val sizeRows = ArrayList<Pair<Int, LinearLayout>>()
     private val paletteRows = ArrayList<Pair<Int, LinearLayout>>(); private val langRows = ArrayList<Pair<String, LinearLayout>>()
@@ -863,18 +847,7 @@ class MainActivity : Activity() {
         val target = i.coerceIn(0, (screens.size - 1).coerceAtLeast(0))
         currentScreen = target
         for (n in screens.indices) screens[n].visibility = if (n == target) View.VISIBLE else View.GONE
-        bottomLeftGearBtn.visibility = if (target == 1) View.VISIBLE else View.GONE
-        if (target == 0) updateRemoteHeaderIndicator()
-        val activeNavIndex: Int? = when (target) {
-            0 -> 0
-            1 -> 1
-            else -> null
-        }
-        for (n in navBtns.indices) {
-            val active = activeNavIndex != null && n == activeNavIndex
-            navBtns[n].background = makeShapeBg(if (active) cAccent else cCard, if (active) cAccentStroke else cBtnStroke, false)
-            navBtns[n].setTextColor(if (active) cAccentText else cSubtext)
-        }
+        updateRemoteHeaderIndicator()
     }
 
     private fun rebuildReleaseNotes() {
@@ -927,10 +900,6 @@ class MainActivity : Activity() {
     }
 
     private fun applyTextsAndState() {
-        if (navBtns.size >= 2) {
-            navBtns[0].text = t("tabRemote")
-            navBtns[1].text = t("tabConnect")
-        }
         tvIpTitleView.text = t("tvIp")
         scanTvBtnView.text = t("scanTv")
         settingsTitleView.text = t("settings")
@@ -970,18 +939,19 @@ class MainActivity : Activity() {
 
         this@MainActivity.rootView.setBackgroundColor(cBg)
         topBarView.background = makeCardBg(cCard, cBtnStroke, 20)
-        connectCardView.background = makeCardBg(cSurface, cBtnStroke, 28)
         settingsCardView.background = makeCardBg(cSurface, cBtnStroke, 28)
         updatesCardView.background = makeCardBg(cSurface, cBtnStroke, 28)
         updatesTitleView.setTextColor(cText)
         dpadWheelView.applyColors(cBtn, cBtnStroke, Color.parseColor("#E2E8F0"), Color.parseColor("#94A3B8"), Color.parseColor("#0F172A"), cText)
         ipBox.background = makeCardBg(cCard, cBtnStroke, 18); codeBox.background = makeCardBg(cCard, cBtnStroke, 18)
 
+        deviceSelectorBtn.background = makeCardBg(cCard, cBtnStroke, 18)
         remoteHeaderTvName.setTextColor(cText)
+        remoteHeaderChevron.setTextColor(cSubtext)
         syncPowerButtonState()
-        bottomLeftGearBtn.background = makeShapeBg(cCard, cAccentStroke, true)
-        bottomLeftGearBtn.setIconColor(cText)
-        bottomLeftGearBtn.setGearHoleColor(cCard)
+        topRightGearBtn.background = makeShapeBg(cCard, cBtnStroke, true)
+        topRightGearBtn.setIconColor(cText)
+        topRightGearBtn.setGearHoleColor(cCard)
         for (btn in roundIconBtns) {
             btn.background = makeShapeBg(cBtn, cBtnStroke, true)
             btn.setIconColor(cText)
@@ -1107,6 +1077,31 @@ class MainActivity : Activity() {
             text = t("scanTroublesTip"); visibility = View.GONE; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(12.5f)); setPadding(px(12), px(10), px(12), px(10))
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 10)
         }
+
+        connectBtnView = Button(this).apply {
+            text = t("connect"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 6, 0, 0)
+            setOnClickListener {
+                tap(v = this)
+                val trimmed = ipBox.text.toString().trim()
+                if (!isValidIpv4(trimmed)) { uiState(StatusState.ENTER_IP, cRedStroke); return@setOnClickListener }
+                manualDisconnect = false
+                tvDeviceName = t("tvDeviceFallback")
+                prefs.edit().putString("ip", trimmed).putString("tv_name", tvDeviceName).apply()
+                closeScanModal()
+                if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
+            }
+        }
+        tvIpTitleView = sectionTitle(t("tvIp"), 15f, 6)
+        manualIpSectionView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 10, 0, 0)
+            addView(tvIpTitleView)
+            addView(ipBox)
+            addView(connectBtnView)
+            addView(codeRow)
+        }
+
         scanTroublesBtn = TextView(this).apply {
             text = t("scanTroubles"); typeface = Typeface.DEFAULT_BOLD; isClickable = true; isFocusable = true
             setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f)); setPadding(px(4), px(6), px(4), px(2))
@@ -1116,20 +1111,16 @@ class MainActivity : Activity() {
                 scanTroublesVisible = !scanTroublesVisible
                 scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE
                 manualIpSectionView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE
-                if (scanTroublesVisible) {
-                    closeScanModal()
-                    show(1)
-                }
             }
         }
         scanDialogCardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(px(20), px(20), px(20), px(20))
             layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply { setMargins(px(24), px(24), px(24), px(24)) }
             addView(header); addView(scanMessageView); addView(scanIndicatorView)
-            addView(scanResultsContainer); addView(scanTroublesTipView)
+            addView(scanResultsContainer); addView(scanTroublesTipView); addView(manualIpSectionView)
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 6, 0, 0)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 8, 0, 0)
                 addView(scanTroublesBtn)
             })
             setOnClickListener {}
@@ -1193,10 +1184,10 @@ class MainActivity : Activity() {
             lastStatusDotColor = cMuted
 
             step = "giriş ve durum bileşenleri"
-            ipBox = styledEdit("192.168.0.42", 16.5f, 18, 14, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 10)).apply { setText(prefs.getString("ip", "")) }
-            codeBox = styledEdit(t("codeHint"), 16f, 16, 14, lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 10, 0))
-            confirmPairBtnView = Button(this).apply { text = t("confirm"); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(54)); setOnClickListener { tap(v = this); finishPairing(codeBox.text.toString()) } }
-            codeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE; setPadding(0, px(12), 0, 0); addView(codeBox); addView(confirmPairBtnView) }
+            ipBox = styledEdit("192.168.0.42", 16f, 16, 12, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 8)).apply { setText(prefs.getString("ip", "")) }
+            codeBox = styledEdit(t("codeHint"), 15.5f, 16, 12, lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 10, 0))
+            confirmPairBtnView = Button(this).apply { text = t("confirm"); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(50)); setOnClickListener { tap(v = this); finishPairing(codeBox.text.toString()) } }
+            codeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE; setPadding(0, px(10), 0, 0); addView(codeBox); addView(confirmPairBtnView) }
 
             statusDot = View(this).apply { layoutParams = lp(px(10), px(10), 0f, 0, 0, 10, 0); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cMuted) } }
             status = TextView(this).apply {
@@ -1214,13 +1205,40 @@ class MainActivity : Activity() {
                 applyPressAnim(this)
                 setOnClickListener { tap(v = this); sendKey(26) }
             }
-            remoteHeaderDot = View(this).apply { layoutParams = lp(px(9), px(9), 0f, 10, 0, 8, 0); background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cMuted) } }
-            remoteHeaderTvName = TextView(this).apply { text = t("tvDeviceFallback"); typeface = Typeface.DEFAULT_BOLD; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15f)); setSingleLine(); layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
-
-            bottomLeftGearBtn = RemoteIconButton(this, IconKind.IOS_SETTINGS).apply {
-                layoutParams = lp(px(52), px(52))
+            remoteHeaderTvName = TextView(this).apply {
+                text = t("tvDeviceFallback")
+                typeface = Typeface.DEFAULT_BOLD
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(15f))
+                setSingleLine()
+                ellipsize = TextUtils.TruncateAt.END
+                layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 6, 0)
+            }
+            remoteHeaderChevron = TextView(this).apply {
+                text = "v"
+                typeface = Typeface.DEFAULT_BOLD
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13f))
+                layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            }
+            deviceSelectorBtn = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                isClickable = true
+                isFocusable = true
+                setPadding(px(14), px(10), px(12), px(10))
+                layoutParams = lp(0, px(48), 1f, 10, 0, 8, 0)
+                addView(remoteHeaderTvName)
+                addView(remoteHeaderChevron)
                 applyPressAnim(this)
-                setOnClickListener { tap(v = this); show(2) }
+                setOnClickListener { tap(v = this); openAndScanNetwork(prefs) }
+            }
+            remoteHeaderDot = View(this).apply {
+                layoutParams = lp(px(10), px(10), 0f, 0, 0, 8, 0)
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cMuted) }
+            }
+            topRightGearBtn = RemoteIconButton(this, IconKind.IOS_SETTINGS).apply {
+                layoutParams = lp(px(48), px(48))
+                applyPressAnim(this)
+                setOnClickListener { tap(v = this); show(1) }
             }
 
             val initialSize = wheelSizes[wheelSizeMode].second.second
@@ -1232,22 +1250,20 @@ class MainActivity : Activity() {
             val remoteHeaderRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(56), 0f, 0, 2, 0, 12)
-                addView(powerBtnView); addView(remoteHeaderDot); addView(remoteHeaderTvName)
+                addView(powerBtnView); addView(deviceSelectorBtn); addView(remoteHeaderDot); addView(topRightGearBtn)
             }
             val volumeRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 2, 0, 12)
                 addView(roundIconKey(IconKind.MUTE, 56) { sendKey(164) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(16), px(1)) })
                 addView(roundIconKey(IconKind.VOL_DOWN, 56) { sendKey(25) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(16), px(1)) })
                 addView(roundIconKey(IconKind.VOL_UP, 56) { sendKey(24) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.IOS_SETTINGS, 56) { sendKey(176) })
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(82), 0f, 0, 6, 0, 6)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(82), 0f, 0, 6, 0, 10)
                 addView(roundIconKey(IconKind.BACK, 70) { sendKey(4) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(52), px(1)) })
                 addView(roundIconKey(IconKind.HOME, 70) { sendKey(3) })
@@ -1262,49 +1278,15 @@ class MainActivity : Activity() {
                 addView(bottomKeysRow)
             })
 
-            step = "bağlantı ekranı"
-            connectBtnView = Button(this).apply {
-                text = t("connect"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(52))
-                setOnClickListener {
-                    tap(v = this)
-                    val trimmed = ipBox.text.toString().trim()
-                    if (!isValidIpv4(trimmed)) { uiState(StatusState.ENTER_IP, cRedStroke); return@setOnClickListener }
-                    manualDisconnect = false
-                    tvDeviceName = t("tvDeviceFallback")
-                    prefs.edit().putString("ip", trimmed).putString("tv_name", tvDeviceName).apply()
-                    closeScanModal()
-                    if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
-                }
-            }
-            tvIpTitleView = sectionTitle(t("tvIp"), 16.5f, 8)
-            manualIpSectionView = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                visibility = View.GONE
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 14, 0, 0)
-                addView(tvIpTitleView)
-                addView(ipBox)
-                addView(connectBtnView)
-            }
-            scanTvBtnView = Button(this).apply {
-                text = t("scanTv"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(58))
-                setOnClickListener { tap(v = this); openAndScanNetwork(prefs) }
-            }
-            connectCardView = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL; setPadding(px(16), px(18), px(16), px(18)); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                addView(scanTvBtnView); addView(manualIpSectionView); addView(codeRow)
-            }
-            screens.add(ScrollView(this).apply {
-                visibility = View.GONE
-                addView(LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(px(14), px(10), px(14), px(12))
-                    addView(connectCardView)
-                })
-            })
-
             step = "ayarlar ekranı"
             fun makeDropdownContainer() = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; visibility = View.GONE
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 4, 0, 4)
+            }
+
+            scanTvBtnView = Button(this).apply {
+                text = t("scanTv"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 6, 0, 4)
+                setOnClickListener { tap(v = this); openAndScanNetwork(prefs) }
             }
 
             val (vh, vl, vv) = createDropdownHeader { vibDropdownOpen = !vibDropdownOpen; refreshDropdowns() }
@@ -1352,7 +1334,7 @@ class MainActivity : Activity() {
             updatesBtnView = Button(this).apply {
                 text = t("updates")
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 12, 0, 0)
-                setOnClickListener { tap(v = this); rebuildReleaseNotes(); show(3) }
+                setOnClickListener { tap(v = this); rebuildReleaseNotes(); show(2) }
             }
             resetPairBtnView = Button(this).apply {
                 text = t("resetPair"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 8, 0, 0)
@@ -1373,14 +1355,21 @@ class MainActivity : Activity() {
                 text = t("contactUs"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 8, 0, 0)
                 setOnClickListener { tap(v = this); openContactModal() }
             }
+            val backToRemoteFromSettingsBtn = Button(this).apply {
+                text = t("back")
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 10, 0, 0)
+                setOnClickListener { tap(v = this); show(0) }
+            }
             settingsTitleView = sectionTitle(t("settings"), 17.5f, 6)
 
             settingsCardView = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; setPadding(px(16), px(16), px(16), px(16))
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                addView(settingsTitleView); addView(vibHeaderRow); addView(vibOptionsContainer); addView(sizeHeaderRow); addView(sizeOptionsContainer)
-                addView(autoConnectBtn); addView(paletteHeaderRow); addView(paletteOptionsContainer); addView(langHeaderRow); addView(langOptionsContainer)
-                addView(updatesBtnView); addView(resetPairBtnView); addView(contactUsBtnView)
+                addView(settingsTitleView); addView(scanTvBtnView); addView(vibHeaderRow); addView(vibOptionsContainer)
+                addView(sizeHeaderRow); addView(sizeOptionsContainer); addView(autoConnectBtn)
+                addView(paletteHeaderRow); addView(paletteOptionsContainer); addView(langHeaderRow); addView(langOptionsContainer)
+                addView(updatesBtnView); addView(resetPairBtnView); addView(contactUsBtnView); addView(backToRemoteFromSettingsBtn)
+                styleBtn(backToRemoteFromSettingsBtn, cBtn, cBtnStroke, cText, 14.5f, 18)
             }
             screens.add(ScrollView(this).apply {
                 visibility = View.GONE
@@ -1399,7 +1388,7 @@ class MainActivity : Activity() {
             updatesBackBtnView = Button(this).apply {
                 text = t("back")
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(50), 0f, 0, 4, 0, 0)
-                setOnClickListener { tap(v = this); show(2) }
+                setOnClickListener { tap(v = this); show(1) }
             }
             updatesCardView = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; setPadding(px(16), px(18), px(16), px(18))
@@ -1421,12 +1410,8 @@ class MainActivity : Activity() {
             val content = FrameLayout(this).apply {
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
                 for (sc in screens) addView(sc, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-                addView(bottomLeftGearBtn, FrameLayout.LayoutParams(px(52), px(52), Gravity.BOTTOM or Gravity.START).apply {
-                    setMargins(px(22), 0, 0, px(12))
-                })
             }
-            val bottomNav = row(nav(t("tabRemote"), 0), nav(t("tabConnect"), 1)).apply { setPadding(px(8), px(2), px(8), px(4)) }
-            this@MainActivity.rootView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(px(4), px(26), px(4), px(6)); addView(topBarView); addView(content); addView(bottomNav) }
+            this@MainActivity.rootView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(px(4), px(26), px(4), px(8)); addView(topBarView); addView(content) }
 
             step = "pencere katmanları"
             buildScanModal(prefs)
@@ -1439,10 +1424,12 @@ class MainActivity : Activity() {
             setContentView(shell)
 
             step = "başlangıç durumu"
-            currentScreen = if (paired && isValidIpv4(ipBox.text.toString().trim())) 0 else 1
+            currentScreen = 0
             applyPalette(paletteIndex, switchTab = false)
             show(currentScreen)
-            if (currentScreen == 0 && autoConnectEnabled) connectClicked()
+            if (paired && isValidIpv4(ipBox.text.toString().trim()) && autoConnectEnabled) {
+                connectClicked()
+            }
         } catch (e: Throwable) {
             renderCrashScreen(savedInstanceState, e)
         }
@@ -1457,7 +1444,8 @@ class MainActivity : Activity() {
     override fun onBackPressed() {
         if (contactModalOpen) { closeContactModal(); return }
         if (scanModalOpen) { closeScanModal(); return }
-        if (currentScreen == 3) { show(2); return }
+        if (currentScreen == 2) { show(1); return }
+        if (currentScreen == 1) { show(0); return }
         @Suppress("DEPRECATION") super.onBackPressed()
     }
 
@@ -1630,14 +1618,6 @@ class MainActivity : Activity() {
             true
         }
     } catch (_: Exception) { false }
-
-    private fun nav(label: String, i: Int) = Button(this).apply {
-        text = label; typeface = Typeface.DEFAULT_BOLD; isAllCaps = false; setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14.5f))
-        setPadding(px(6), px(2), px(6), px(2)); layoutParams = lp(0, px(56), 1f, 5, 2, 5, 4)
-        navBtns.add(this); applyPressAnim(this); setOnClickListener { tap(v = this); show(i) }
-    }
-
-    private fun row(vararg views: View) = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; for (v in views) addView(v) }
 
     private fun roundIconKey(kind: IconKind, sizeDp: Int, onClick: () -> Unit): RemoteIconButton {
         val btn = RemoteIconButton(this, kind).apply {
