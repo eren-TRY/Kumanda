@@ -15,6 +15,7 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.*
+import android.text.TextUtils
 import android.util.TypedValue
 import android.view.*
 import android.widget.*
