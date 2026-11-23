@@ -69,7 +69,9 @@ object Pb {
             while (i < b.size) {
                 val x = b[i++].toInt() and 0xFF
                 r = r or ((x and 0x7F).toLong() shl shift)
-                if ((x and 0x80) == 0 || ++shift > 63) return r
+                if ((x and 0x80) == 0) return r
+                shift += 7
+                if (shift > 63) return r
             }
             return r
         }
