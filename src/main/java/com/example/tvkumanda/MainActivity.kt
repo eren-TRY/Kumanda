@@ -10,6 +10,8 @@ import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.*
@@ -24,10 +26,13 @@ import java.io.ByteArrayOutputStream
 import java.io.EOFException
 import java.io.File
 import java.math.BigInteger
+import java.net.ConnectException
 import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
+import java.net.NoRouteToHostException
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.security.*
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
@@ -115,7 +120,7 @@ private class FixedKm(val id: Identity) : X509KeyManager {
     override fun getClientAliases(k: String?, i: Array<Principal>?) = arrayOf("c")
     override fun chooseClientAlias(k: Array<String>?, i: Array<Principal>?, s: Socket?) = "c"
     override fun getServerAliases(k: String?, i: Array<Principal>?): Array<String>? = null
-    override fun chooseServerAlias(k: String?, i: Array<Principal>?, s: Socket?): String? = null
+    override fun chooseServerAlias(k: Array<String>?, i: Array<Principal>?, s: Socket?): String? = null
     override fun getCertificateChain(a: String?) = arrayOf(id.cert)
     override fun getPrivateKey(a: String?) = id.key
 }
@@ -447,6 +452,13 @@ private data class ReleaseNote(val version: String, val changes: List<String>)
 private val releaseNotesMap = mapOf(
     "tr" to listOf(
         ReleaseNote(
+            "v1.8",
+            listOf(
+                "Wi-Fi ağına doğrudan soket bağlama (bindSocket) eklenerek mobil veri/VPN çakışması giderildi.",
+                "Zaman aşımı, bağlantı reddi ve ağ erişilemezlik hataları ayrıştırıldı."
+            )
+        ),
+        ReleaseNote(
             "v1.7",
             listOf(
                 "Bağlantı koptuğunda otomatik yeniden bağlanma ve soket temizleme akışı iyileştirildi.",
@@ -464,24 +476,18 @@ private val releaseNotesMap = mapOf(
             "v1.5",
             listOf(
                 "iPhone tarzı ayarlar dişlisi sadece Bağlantı ekranının sol altına eklendi.",
-                "Bize Ulaşın butonuna basıldığında açılan iletişim penceresi ve Instagram seçeneği eklendi.",
-                "Eşleştirme ve bağlantı oturumları için soket temizleme ve hata detayları geliştirildi."
-            )
-        ),
-        ReleaseNote(
-            "v1.4",
-            listOf(
-                "Üst tuşlar, yön tekerleği ve alt Geri / Ana Ekran butonları düzenlendi."
-            )
-        ),
-        ReleaseNote(
-            "v1.3",
-            listOf(
-                "Ayarlar içine sürüm geçmişi ve değişikliklerin listelendiği Güncellemeler sayfası eklendi."
+                "Bize Ulaşın butonuna basıldığında açılan iletişim penceresi ve Instagram seçeneği eklendi."
             )
         )
     ),
     "en" to listOf(
+        ReleaseNote(
+            "v1.8",
+            listOf(
+                "Bound sockets directly to the active Wi-Fi network to fix mobile data/VPN routing timeouts.",
+                "Added clear error diagnostics for timeout, connection refused, and unreachable host."
+            )
+        ),
         ReleaseNote(
             "v1.7",
             listOf(
@@ -500,18 +506,6 @@ private val releaseNotesMap = mapOf(
             "v1.5",
             listOf(
                 "Added iPhone-style gear on Connection screen only, Contact Us sheet with Instagram, and socket/error improvements."
-            )
-        ),
-        ReleaseNote(
-            "v1.4",
-            listOf(
-                "Adjusted remote buttons and bottom Back and Home controls."
-            )
-        ),
-        ReleaseNote(
-            "v1.3",
-            listOf(
-                "Added an Updates page inside Settings."
             )
         )
     )
@@ -697,6 +691,69 @@ class MainActivity : Activity() {
         val parts = ip.split(".")
         if (parts.size != 4) return false
         return parts.all { p -> p.isNotEmpty() && p.all { it.isDigit() } && (p.toIntOrNull() in 0..255) }
+    }
+
+    private fun findWifiNetwork(): Network? {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.allNetworks.firstOrNull { net ->
+                val caps = cm.getNetworkCapabilities(net)
+                caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            } ?: cm.activeNetwork?.takeIf { net ->
+                cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun bindSocketToWifi(socket: Socket) {
+        try {
+            findWifiNetwork()?.bindSocket(socket)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun diagnoseConnectionError(e: Exception, targetIp: String, port: Int): String {
+        val wifiNet = findWifiNetwork()
+        if (wifiNet == null) {
+            return if (currentLang == "en") {
+                "Phone is not connected to Wi-Fi. Turn on Wi-Fi on the same network as TV."
+            } else {
+                "Telefon Wi-Fi ağına bağlı değil. TV ile aynı Wi-Fi ağına bağlanın."
+            }
+        }
+        return when (e) {
+            is ConnectException -> {
+                if (currentLang == "en") {
+                    "TV ($targetIp:$port) refused connection. Android TV Remote Service may be off or unsupported on this TV."
+                } else {
+                    "TV ($targetIp:$port) bağlantıyı reddetti. TV'de Android TV Remote servisi kapalı veya bu TV desteklemiyor."
+                }
+            }
+            is NoRouteToHostException -> {
+                if (currentLang == "en") {
+                    "No route to $targetIp. Check TV IP or router AP isolation."
+                } else {
+                    "$targetIp adresine ulaşılamıyor. TV IP'sini veya modem cihaz izolasyonunu kontrol edin."
+                }
+            }
+            is SocketTimeoutException -> {
+                if (currentLang == "en") {
+                    "Timeout reaching $targetIp:$port. Verify TV is awake, IP is current, and port $port is open."
+                } else {
+                    "$targetIp:$port zaman aşımı. TV'nin açık olduğunu, IP'nin değişmediğini ve TV'nin Android TV/Google TV olduğunu kontrol edin."
+                }
+            }
+            is SSLException -> {
+                if (currentLang == "en") {
+                    "TLS handshake failed (${e.message ?: "SSL"}). Try Reset Pairing in Settings."
+                } else {
+                    "TLS el sıkışması başarısız (${e.message ?: "SSL"}). Ayarlardan Eşleştirmeyi Sıfırla deneyin."
+                }
+            }
+            else -> e.message ?: e.javaClass.simpleName
+        }
     }
 
     private fun applyPressAnim(v: View) {
@@ -1301,7 +1358,7 @@ class MainActivity : Activity() {
 
             settingsCardView = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; setPadding(px(16), px(16), px(16), px(16))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 addView(settingsTitleView); addView(vibHeaderRow); addView(vibOptionsContainer); addView(sizeHeaderRow); addView(sizeOptionsContainer)
                 addView(autoConnectBtn); addView(paletteHeaderRow); addView(paletteOptionsContainer); addView(langHeaderRow); addView(langOptionsContainer)
                 addView(updatesBtnView); addView(resetPairBtnView); addView(contactUsBtnView)
@@ -1327,7 +1384,7 @@ class MainActivity : Activity() {
             }
             updatesCardView = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; setPadding(px(16), px(18), px(16), px(18))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 addView(updatesTitleView)
                 addView(updatesListContainer)
                 addView(updatesBackBtnView)
@@ -1418,7 +1475,7 @@ class MainActivity : Activity() {
     private fun getLocalSubnetPrefix(): String? {
         try {
             val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val net = cm.activeNetwork
+            val net = findWifiNetwork() ?: cm.activeNetwork
             if (net != null) {
                 val prefix = cm.getLinkProperties(net)?.linkAddresses?.firstNotNullOfOrNull { linkAddr ->
                     val addr = linkAddr.address
@@ -1515,7 +1572,7 @@ class MainActivity : Activity() {
                         try {
                             if (token == scanToken && isActivityActive) {
                                 val candidate = "$prefix.$lastOctet"
-                                if ((isTvPortOpen(candidate, 6466, 220) || isTvPortOpen(candidate, 6467, 220)) && token == scanToken && !found.contains(candidate)) {
+                                if ((isTvPortOpen(candidate, 6466, 300) || isTvPortOpen(candidate, 6467, 300)) && token == scanToken && !found.contains(candidate)) {
                                     found.add(candidate)
                                     val sortedNow = found.distinct().sortedBy { it.substringAfterLast(".").toIntOrNull() ?: 999 }
                                     runOnUiThread {
@@ -1526,7 +1583,7 @@ class MainActivity : Activity() {
                         } finally { latch.countDown() }
                     }
                 }
-                latch.await(7500, TimeUnit.MILLISECONDS)
+                latch.await(8500, TimeUnit.MILLISECONDS)
             } finally {
                 pool.shutdownNow()
             }
@@ -1544,7 +1601,11 @@ class MainActivity : Activity() {
     }
 
     private fun isTvPortOpen(ip: String, port: Int, timeoutMs: Int): Boolean = try {
-        Socket().use { it.connect(InetSocketAddress(ip, port), timeoutMs); true }
+        Socket().use {
+            bindSocketToWifi(it)
+            it.connect(InetSocketAddress(ip, port), timeoutMs)
+            true
+        }
     } catch (_: Exception) { false }
 
     private fun nav(label: String, i: Int) = Button(this).apply {
@@ -1587,15 +1648,22 @@ class MainActivity : Activity() {
     }
 
     private fun openTls(h: String, port: Int, id: Identity, readTimeoutMs: Int): Conn {
-        val ctx = SSLContext.getInstance("TLS").apply { init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), null) }
-        val s = (ctx.socketFactory.createSocket() as SSLSocket).apply {
-            useClientMode = true
+        val ctx = SSLContext.getInstance("TLSv1.2").apply {
+            init(arrayOf<KeyManager>(FixedKm(id)), arrayOf<TrustManager>(TrustAll()), SecureRandom())
+        }
+        val rawSocket = Socket().apply {
             tcpNoDelay = true
+            keepAlive = true
+            bindSocketToWifi(this)
+            connect(InetSocketAddress(h, port), 8000)
             soTimeout = readTimeoutMs
-            connect(InetSocketAddress(h, port), 4500)
+        }
+        val sslSocket = (ctx.socketFactory.createSocket(rawSocket, h, port, true) as SSLSocket).apply {
+            useClientMode = true
+            enabledProtocols = supportedProtocols.filter { it == "TLSv1.2" || it == "TLSv1.3" }.toTypedArray().ifEmpty { supportedProtocols }
             startHandshake()
         }
-        return Conn(s)
+        return Conn(sslSocket)
     }
 
     private fun outer(field: Int, inner: ByteArray) = Pb.int(1, 2) + Pb.int(2, 200) + Pb.bytes(field, inner)
@@ -1624,7 +1692,7 @@ class MainActivity : Activity() {
         uiState(StatusState.PAIRING_START, cAccentStroke)
         fastIo.execute {
             try {
-                val c = openTls(h, 6467, identity(), 12000)
+                val c = openTls(h, 6467, identity(), 15000)
                 val cert = c.sock.session.peerCertificates.firstOrNull() as? X509Certificate
                     ?: throw IllegalStateException("TV sertifikası alınamadı")
                 c.send(outer(10, Pb.str(1, "atvremote") + Pb.str(2, "Android TV Remote"))); expect(c, 11)
@@ -1641,7 +1709,7 @@ class MainActivity : Activity() {
                     pairConn = null
                     pairServerCert = null
                 }
-                uiState(StatusState.PAIRING_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName)
+                uiState(StatusState.PAIRING_FAILED, cRedStroke, diagnoseConnectionError(e, h, 6467))
             }
         }
     }
@@ -1689,7 +1757,7 @@ class MainActivity : Activity() {
                 connectRemote()
                 runOnUiThread { show(0) }
             } catch (e: Exception) {
-                uiState(StatusState.CONNECT_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName)
+                uiState(StatusState.CONNECT_FAILED, cRedStroke, diagnoseConnectionError(e, host, 6466))
             }
         }
     }
@@ -1700,7 +1768,7 @@ class MainActivity : Activity() {
         host = h; manualDisconnect = false; uiState(StatusState.CONNECTING, cAccentStroke)
         fastIo.execute {
             try { connectRemote(); runOnUiThread { show(0) } }
-            catch (e: Exception) { uiState(StatusState.CONNECT_FAILED, cRedStroke, e.message ?: e.javaClass.simpleName) }
+            catch (e: Exception) { uiState(StatusState.CONNECT_FAILED, cRedStroke, diagnoseConnectionError(e, h, 6466)) }
         }
     }
 
@@ -1720,7 +1788,7 @@ class MainActivity : Activity() {
 
     private fun waitReady() {
         var waited = 0
-        while (!ready && waited < 3500) {
+        while (!ready && waited < 4500) {
             Thread.sleep(15)
             waited += 15
         }
