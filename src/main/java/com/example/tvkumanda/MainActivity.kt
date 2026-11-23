@@ -186,7 +186,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w <= 0 || h <= 0) return
-        val cx = w / 2f; val cy = h / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.29f
+        val cx = w / 2f; val cy = h / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.28f
         outerRect.set(cx - outerR, cy - outerR, cx + outerR, cy + outerR)
         innerRect.set(cx - innerR, cy - innerR, cx + innerR, cy + innerR)
         val starts = floatArrayOf(-45f, 45f, 135f, 225f)
@@ -196,7 +196,7 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     }
 
     private fun zoneAt(x: Float, y: Float): DpadZone {
-        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.29f
+        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.28f
         val dist = hypot((x - cx).toDouble(), (y - cy).toDouble())
         if (dist > outerR) return DpadZone.NONE
         if (dist <= innerR) return DpadZone.CENTER
@@ -210,9 +210,9 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
         canvas.translate(cx, cy)
         canvas.rotate(deg.toFloat())
         chevronPath.reset()
-        chevronPath.moveTo(-arm * 0.48f, arm * 0.22f)
-        chevronPath.lineTo(0f, -arm * 0.24f)
-        chevronPath.lineTo(arm * 0.48f, arm * 0.22f)
+        chevronPath.moveTo(-arm * 0.52f, arm * 0.25f)
+        chevronPath.lineTo(0f, -arm * 0.25f)
+        chevronPath.lineTo(arm * 0.52f, arm * 0.25f)
         canvas.drawPath(chevronPath, arrowPaint)
         canvas.restore()
     }
@@ -220,17 +220,17 @@ private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.29f
-        strokePaint.strokeWidth = maxOf(2f, outerR * 0.014f); strokePaint.color = sliceStroke
+        val cx = width / 2f; val cy = height / 2f; val outerR = min(cx, cy) - 4f; val innerR = outerR * 0.28f
+        strokePaint.strokeWidth = maxOf(1.8f, outerR * 0.011f); strokePaint.color = sliceStroke
         val zones = arrayOf(DpadZone.RIGHT, DpadZone.DOWN, DpadZone.LEFT, DpadZone.UP)
         for (i in 0 until 4) {
             fillPaint.color = if (activeZone == zones[i]) pressedSliceFill else sliceFill
             canvas.drawPath(slicePaths[i], fillPaint); canvas.drawPath(slicePaths[i], strokePaint)
         }
-        val midR = (outerR + innerR) * 0.54f
+        val midR = (outerR + innerR) * 0.56f
         arrowPaint.color = arrowColor
-        arrowPaint.strokeWidth = maxOf(3f, outerR * 0.025f)
-        val arm = outerR * 0.135f
+        arrowPaint.strokeWidth = maxOf(2.8f, outerR * 0.022f)
+        val arm = outerR * 0.125f
         for (deg in listOf(0.0, 90.0, 180.0, 270.0)) {
             val rad = Math.toRadians(deg - 90.0)
             drawChevron(canvas, cx + (midR * cos(rad)).toFloat(), cy + (midR * sin(rad)).toFloat(), arm, deg)
@@ -301,30 +301,30 @@ private class RemoteIconButton(
 
     private fun drawSpeakerBody(canvas: Canvas, cx: Float, cy: Float, u: Float) {
         speakerPath.reset()
-        speakerPath.moveTo(cx - u * 0.68f, cy - u * 0.22f)
-        speakerPath.lineTo(cx - u * 0.32f, cy - u * 0.22f)
-        speakerPath.lineTo(cx + u * 0.14f, cy - u * 0.62f)
-        speakerPath.lineTo(cx + u * 0.14f, cy + u * 0.62f)
-        speakerPath.lineTo(cx - u * 0.32f, cy + u * 0.22f)
-        speakerPath.lineTo(cx - u * 0.68f, cy + u * 0.22f)
+        speakerPath.moveTo(cx - u * 0.64f, cy - u * 0.24f)
+        speakerPath.lineTo(cx - u * 0.28f, cy - u * 0.24f)
+        speakerPath.lineTo(cx + u * 0.16f, cy - u * 0.64f)
+        speakerPath.lineTo(cx + u * 0.16f, cy + u * 0.64f)
+        speakerPath.lineTo(cx - u * 0.28f, cy + u * 0.24f)
+        speakerPath.lineTo(cx - u * 0.64f, cy + u * 0.24f)
         speakerPath.close()
         canvas.drawPath(speakerPath, fillPaint)
     }
 
     private fun drawIosGear(canvas: Canvas, cx: Float, cy: Float, u: Float) {
-        val teeth = 12
-        val rTip = u * 0.90f
-        val rRoot = u * 0.70f
-        val rInner = u * 0.28f
+        val teeth = 8
+        val rTip = u * 0.92f
+        val rRoot = u * 0.68f
+        val rInner = u * 0.30f
         gearPath.reset()
         val stepAngle = (2.0 * PI) / teeth
         for (i in 0 until teeth) {
             val base = i * stepAngle
             val a0 = base
-            val a1 = base + stepAngle * 0.22
-            val a2 = base + stepAngle * 0.34
-            val a3 = base + stepAngle * 0.66
-            val a4 = base + stepAngle * 0.78
+            val a1 = base + stepAngle * 0.20
+            val a2 = base + stepAngle * 0.32
+            val a3 = base + stepAngle * 0.68
+            val a4 = base + stepAngle * 0.80
 
             val x0 = cx + (rRoot * cos(a0)).toFloat()
             val y0 = cy + (rRoot * sin(a0)).toFloat()
@@ -340,9 +340,6 @@ private class RemoteIconButton(
 
         fillPaint.color = gearHoleColor
         canvas.drawCircle(cx, cy, rInner, fillPaint)
-        strokePaint.color = iconColor
-        strokePaint.strokeWidth = maxOf(2f, u * 0.14f)
-        canvas.drawCircle(cx, cy, rInner, strokePaint)
         fillPaint.color = iconColor
     }
 
@@ -352,70 +349,68 @@ private class RemoteIconButton(
         val w = width.toFloat(); val h = height.toFloat()
         val cx = w / 2f; val cy = h / 2f
         val s = min(w, h)
-        val u = s * 0.26f
+        val u = s * 0.25f
         strokePaint.color = iconColor
         fillPaint.color = iconColor
-        strokePaint.strokeWidth = maxOf(2.4f, s * 0.052f)
+        strokePaint.strokeWidth = maxOf(2.2f, s * 0.052f)
 
         when (kind) {
             IconKind.POWER -> {
-                val r = s * 0.25f
-                rect.set(cx - r, cy - r + r * 0.14f, cx + r, cy + r + r * 0.14f)
-                canvas.drawArc(rect, -58f, 296f, false, strokePaint)
-                canvas.drawLine(cx, cy - r * 0.35f, cx, cy + r * 0.12f, strokePaint)
+                val r = s * 0.24f
+                rect.set(cx - r, cy - r + r * 0.12f, cx + r, cy + r + r * 0.12f)
+                canvas.drawArc(rect, -55f, 290f, false, strokePaint)
+                canvas.drawLine(cx, cy - r * 0.36f, cx, cy + r * 0.08f, strokePaint)
             }
             IconKind.MUTE -> {
-                drawSpeakerBody(canvas, cx - u * 0.14f, cy, u)
-                val x1 = cx + u * 0.34f; val x2 = cx + u * 0.80f
-                val d = u * 0.24f
-                canvas.drawLine(x1, cy - d, x2, cy + d, strokePaint)
-                canvas.drawLine(x1, cy + d, x2, cy - d, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.22f, cy, u * 0.92f)
+                val d = u * 0.58f
+                canvas.drawLine(cx - d * 0.55f, cy - d * 0.72f, cx + d * 0.85f, cy + d * 0.72f, strokePaint)
             }
             IconKind.VOL_DOWN -> {
-                drawSpeakerBody(canvas, cx - u * 0.14f, cy, u)
-                rect.set(cx + u * 0.12f, cy - u * 0.32f, cx + u * 0.60f, cy + u * 0.32f)
-                canvas.drawArc(rect, -42f, 84f, false, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.18f, cy, u * 0.94f)
+                rect.set(cx + u * 0.12f, cy - u * 0.36f, cx + u * 0.62f, cy + u * 0.36f)
+                canvas.drawArc(rect, -45f, 90f, false, strokePaint)
             }
             IconKind.VOL_UP -> {
-                drawSpeakerBody(canvas, cx - u * 0.20f, cy, u)
-                rect.set(cx + u * 0.06f, cy - u * 0.32f, cx + u * 0.50f, cy + u * 0.32f)
-                canvas.drawArc(rect, -42f, 84f, false, strokePaint)
-                rect.set(cx - u * 0.02f, cy - u * 0.54f, cx + u * 0.80f, cy + u * 0.54f)
-                canvas.drawArc(rect, -42f, 84f, false, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.26f, cy, u * 0.94f)
+                rect.set(cx + u * 0.02f, cy - u * 0.34f, cx + u * 0.48f, cy + u * 0.34f)
+                canvas.drawArc(rect, -45f, 90f, false, strokePaint)
+                rect.set(cx - u * 0.06f, cy - u * 0.58f, cx + u * 0.78f, cy + u * 0.58f)
+                canvas.drawArc(rect, -45f, 90f, false, strokePaint)
             }
             IconKind.BACK -> {
-                val a = u * 0.95f
-                canvas.drawLine(cx - a * 0.80f, cy, cx + a * 0.80f, cy, strokePaint)
-                canvas.drawLine(cx - a * 0.80f, cy, cx - a * 0.15f, cy - a * 0.68f, strokePaint)
-                canvas.drawLine(cx - a * 0.80f, cy, cx - a * 0.15f, cy + a * 0.68f, strokePaint)
+                val a = u * 1.08f
+                canvas.drawLine(cx - a * 0.78f, cy, cx + a * 0.78f, cy, strokePaint)
+                canvas.drawLine(cx - a * 0.78f, cy, cx - a * 0.14f, cy - a * 0.66f, strokePaint)
+                canvas.drawLine(cx - a * 0.78f, cy, cx - a * 0.14f, cy + a * 0.66f, strokePaint)
             }
             IconKind.HOME -> {
-                val a = u * 0.92f
+                val a = u * 1.08f
                 val roofPath = Path().apply {
-                    moveTo(cx, cy - a * 0.88f)
-                    lineTo(cx - a * 0.88f, cy - a * 0.05f)
-                    lineTo(cx - a * 0.58f, cy - a * 0.05f)
-                    lineTo(cx - a * 0.58f, cy + a * 0.78f)
-                    lineTo(cx - a * 0.20f, cy + a * 0.78f)
-                    lineTo(cx - a * 0.20f, cy + a * 0.24f)
-                    lineTo(cx + a * 0.20f, cy + a * 0.24f)
-                    lineTo(cx + a * 0.20f, cy + a * 0.78f)
-                    lineTo(cx + a * 0.58f, cy + a * 0.78f)
-                    lineTo(cx + a * 0.58f, cy - a * 0.05f)
-                    lineTo(cx + a * 0.88f, cy - a * 0.05f)
+                    moveTo(cx, cy - a * 0.86f)
+                    lineTo(cx - a * 0.86f, cy - a * 0.06f)
+                    lineTo(cx - a * 0.58f, cy - a * 0.06f)
+                    lineTo(cx - a * 0.58f, cy + a * 0.76f)
+                    lineTo(cx - a * 0.18f, cy + a * 0.76f)
+                    lineTo(cx - a * 0.18f, cy + a * 0.22f)
+                    lineTo(cx + a * 0.18f, cy + a * 0.22f)
+                    lineTo(cx + a * 0.18f, cy + a * 0.76f)
+                    lineTo(cx + a * 0.58f, cy + a * 0.76f)
+                    lineTo(cx + a * 0.58f, cy - a * 0.06f)
+                    lineTo(cx + a * 0.86f, cy - a * 0.06f)
                     close()
                 }
                 canvas.drawPath(roofPath, fillPaint)
             }
             IconKind.IOS_SETTINGS -> {
-                drawIosGear(canvas, cx, cy, u * 1.02f)
+                drawIosGear(canvas, cx, cy, u * 0.98f)
             }
             IconKind.RECONNECT -> {
-                val r = u * 0.68f
+                val r = u * 0.66f
                 rect.set(cx - r, cy - r, cx + r, cy + r)
-                canvas.drawArc(rect, -40f, 275f, false, strokePaint)
-                canvas.drawLine(cx + r * 0.75f, cy - r * 0.65f, cx + r * 1.05f, cy - r * 0.15f, strokePaint)
-                canvas.drawLine(cx + r * 0.75f, cy - r * 0.65f, cx + r * 0.25f, cy - r * 0.55f, strokePaint)
+                canvas.drawArc(rect, -35f, 270f, false, strokePaint)
+                canvas.drawLine(cx + r * 0.78f, cy - r * 0.62f, cx + r * 1.06f, cy - r * 0.14f, strokePaint)
+                canvas.drawLine(cx + r * 0.78f, cy - r * 0.62f, cx + r * 0.28f, cy - r * 0.54f, strokePaint)
             }
         }
     }
@@ -527,9 +522,8 @@ private val stringsMap = mapOf(
         "linkOpenFailed" to "Bağlantı açılamadı", "retry" to "Tekrar Dene",
         "vibOff" to "Kapalı", "vibLight" to "Hafif", "vibMed" to "Orta", "vibStrong" to "Güçlü",
         "sizeSmall" to "Küçük", "sizeMedium" to "Orta", "sizeLarge" to "Büyük",
-        "palBlue" to "Mavi", "palEmerald" to "Zümrüt", "palPurple" to "Mor",
-        "palAmber" to "Kehribar", "palBw" to "Siyah Beyaz", "palCrimson" to "Yakut",
-        "palCyan" to "Camgöbeği", "palCoral" to "Mercan",
+        "palBw" to "Siyah Beyaz", "palEmerald" to "Zümrüt", "palPink" to "Pembe",
+        "palCyan" to "Camgöbeği", "palPhoto" to "Kumanda Koyu",
         "scanModalTitle" to "TV Cihazları", "scanSearching" to "Ağınızda TV cihazları aranıyor…",
         "scanTroubles" to "Bağlantı sorunları?",
         "scanTroublesTip" to "Telefon ve TV aynı Wi-Fi ağında olmalı ve cihaz izolasyonu kapalı olmalıdır. Bulunamazsa IP'yi elle girin.",
@@ -557,9 +551,8 @@ private val stringsMap = mapOf(
         "linkOpenFailed" to "Could not open link", "retry" to "Retry",
         "vibOff" to "Off", "vibLight" to "Light", "vibMed" to "Medium", "vibStrong" to "Strong",
         "sizeSmall" to "Small", "sizeMedium" to "Medium", "sizeLarge" to "Large",
-        "palBlue" to "Blue", "palEmerald" to "Emerald", "palPurple" to "Purple",
-        "palAmber" to "Amber", "palBw" to "Black & White", "palCrimson" to "Crimson",
-        "palCyan" to "Cyan", "palCoral" to "Coral",
+        "palBw" to "Black & White", "palEmerald" to "Emerald", "palPink" to "Pink",
+        "palCyan" to "Cyan", "palPhoto" to "Remote Dark",
         "scanModalTitle" to "TV Devices", "scanSearching" to "Searching for TV devices on your network…",
         "scanTroubles" to "Connection troubles?",
         "scanTroublesTip" to "Keep phone and TV on the same Wi-Fi without AP isolation, or enter the TV IP manually.",
@@ -610,14 +603,11 @@ class MainActivity : Activity() {
     private val instagramUrl = "https://www.instagram.com/erew02?cnvx=MTg4bDEyNnYzZ3dmOA=="
 
     private val palettes = listOf(
-        ColorPalette("palBlue", Color.parseColor("#0B0D12"), Color.parseColor("#141821"), Color.parseColor("#10141C"), Color.parseColor("#1D222E"), Color.parseColor("#2B3242"), Color.parseColor("#2563EB"), Color.parseColor("#60A5FA")),
-        ColorPalette("palEmerald", Color.parseColor("#09110E"), Color.parseColor("#111F1A"), Color.parseColor("#0D1814"), Color.parseColor("#182B24"), Color.parseColor("#264237"), Color.parseColor("#059669"), Color.parseColor("#34D399")),
-        ColorPalette("palPurple", Color.parseColor("#0E0B14"), Color.parseColor("#191424"), Color.parseColor("#13101C"), Color.parseColor("#241D33"), Color.parseColor("#362C4D"), Color.parseColor("#7C3AED"), Color.parseColor("#A78BFA")),
-        ColorPalette("palAmber", Color.parseColor("#120E09"), Color.parseColor("#201810"), Color.parseColor("#18120C"), Color.parseColor("#2E2216"), Color.parseColor("#453321"), Color.parseColor("#D97706"), Color.parseColor("#FBBF24")),
         ColorPalette("palBw", Color.parseColor("#000000"), Color.parseColor("#121212"), Color.parseColor("#0A0A0A"), Color.parseColor("#1E1E1E"), Color.parseColor("#4A4A4A"), Color.parseColor("#FFFFFF"), Color.parseColor("#FFFFFF"), Color.parseColor("#000000")),
-        ColorPalette("palCrimson", Color.parseColor("#13090B"), Color.parseColor("#221115"), Color.parseColor("#190D10"), Color.parseColor("#33181E"), Color.parseColor("#4D232C"), Color.parseColor("#DC2626"), Color.parseColor("#F87171")),
+        ColorPalette("palEmerald", Color.parseColor("#09110E"), Color.parseColor("#111F1A"), Color.parseColor("#0D1814"), Color.parseColor("#182B24"), Color.parseColor("#264237"), Color.parseColor("#059669"), Color.parseColor("#34D399")),
+        ColorPalette("palPink", Color.parseColor("#140910"), Color.parseColor("#24111D"), Color.parseColor("#1A0D16"), Color.parseColor("#36182B"), Color.parseColor("#522441"), Color.parseColor("#DB2777"), Color.parseColor("#F472B6")),
         ColorPalette("palCyan", Color.parseColor("#081114"), Color.parseColor("#0F1E24"), Color.parseColor("#0B161B"), Color.parseColor("#162B33"), Color.parseColor("#22414D"), Color.parseColor("#0891B2"), Color.parseColor("#22D3EE")),
-        ColorPalette("palCoral", Color.parseColor("#140B0E"), Color.parseColor("#241419"), Color.parseColor("#1A0E12"), Color.parseColor("#341C24"), Color.parseColor("#4D2935"), Color.parseColor("#E11D48"), Color.parseColor("#FB7185"))
+        ColorPalette("palPhoto", Color.parseColor("#121212"), Color.parseColor("#1E1E1E"), Color.parseColor("#181818"), Color.parseColor("#2A2A2A"), Color.parseColor("#3E3E3E"), Color.parseColor("#52525B"), Color.parseColor("#A1A1AA"), Color.parseColor("#FFFFFF"))
     )
     private val vibLevels = listOf(0 to "vibOff", 1 to "vibLight", 2 to "vibMed", 3 to "vibStrong")
     private val wheelSizes = listOf(0 to ("sizeSmall" to 280), 1 to ("sizeMedium" to 326), 2 to ("sizeLarge" to 356))
@@ -628,6 +618,7 @@ class MainActivity : Activity() {
     private var cBtn = palettes[0].btn; private var cBtnStroke = palettes[0].btnStroke
     private var cAccent = palettes[0].accent; private var cAccentStroke = palettes[0].accentStroke; private var cAccentText = palettes[0].accentText
     private val cRedSoft = Color.parseColor("#2A1418"); private val cRedSolid = Color.parseColor("#EF4444"); private val cRedStroke = Color.parseColor("#F87171")
+    private val cGreenSoft = Color.parseColor("#11261A")
     private val cGreen = Color.parseColor("#22C55E"); private val cMuted = Color.parseColor("#64748B")
     private val cText = Color.parseColor("#F8FAFC"); private val cSubtext = Color.parseColor("#CBD5E1")
 
@@ -856,10 +847,21 @@ class MainActivity : Activity() {
     private fun formatStatus(state: StatusState, detail: String?): String =
         t(state.name).let { if (!detail.isNullOrBlank()) "$it: $detail" else it }
 
+    private fun syncPowerButtonState() {
+        val isConnected = ready && remote != null
+        powerBtnView.background = makeShapeBg(
+            if (isConnected) cGreenSoft else cRedSoft,
+            if (isConnected) cGreen else cRedStroke,
+            true
+        )
+        powerBtnView.setIconColor(if (isConnected) cGreen else cRedStroke)
+    }
+
     private fun updateRemoteHeaderIndicator() {
         val labelIp = connectedHost ?: host.ifBlank { ipBox.text.toString().trim() }
         remoteHeaderTvName.text = if (labelIp.isNotBlank()) labelIp else t("tvDeviceFallback")
         (remoteHeaderDot.background as? GradientDrawable)?.setColor(if (ready && remote != null) cGreen else cMuted)
+        syncPowerButtonState()
     }
 
     private fun show(i: Int) {
@@ -981,8 +983,7 @@ class MainActivity : Activity() {
         ipBox.background = makeCardBg(cCard, cBtnStroke, 18); codeBox.background = makeCardBg(cCard, cBtnStroke, 18)
 
         remoteHeaderTvName.setTextColor(cText)
-        powerBtnView.background = makeShapeBg(cRedSoft, cRedStroke, true)
-        powerBtnView.setIconColor(cRedStroke)
+        syncPowerButtonState()
         bottomLeftGearBtn.background = makeShapeBg(cCard, cAccentStroke, true)
         bottomLeftGearBtn.setIconColor(cText)
         bottomLeftGearBtn.setGearHoleColor(cCard)
@@ -1240,10 +1241,10 @@ class MainActivity : Activity() {
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(62), 0f, 0, 6, 0, 6)
-                addView(roundIconKey(IconKind.BACK, 54) { sendKey(4) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(36), px(1)) })
-                addView(roundIconKey(IconKind.HOME, 54) { sendKey(3) })
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(80), 0f, 0, 6, 0, 6)
+                addView(roundIconKey(IconKind.BACK, 70) { sendKey(4) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(48), px(1)) })
+                addView(roundIconKey(IconKind.HOME, 70) { sendKey(3) })
             }
 
             screens.add(LinearLayout(this).apply {
