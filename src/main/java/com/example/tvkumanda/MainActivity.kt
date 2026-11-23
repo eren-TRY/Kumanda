@@ -117,12 +117,12 @@ class Conn(val sock: SSLSocket) {
 }
 
 private class FixedKm(val id: Identity) : X509KeyManager {
-    override fun getClientAliases(k: String?, i: Array<Principal>?) = arrayOf("c")
-    override fun chooseClientAlias(k: Array<String>?, i: Array<Principal>?, s: Socket?) = "c"
-    override fun getServerAliases(k: String?, i: Array<Principal>?): Array<String>? = null
-    override fun chooseServerAlias(k: Array<String>?, i: Array<Principal>?, s: Socket?): String? = null
-    override fun getCertificateChain(a: String?) = arrayOf(id.cert)
-    override fun getPrivateKey(a: String?) = id.key
+    override fun getClientAliases(keyType: String?, issuers: Array<out Principal>?) = arrayOf("c")
+    override fun chooseClientAlias(keyType: Array<out String>?, issuers: Array<out Principal>?, socket: Socket?) = "c"
+    override fun getServerAliases(keyType: String?, issuers: Array<out Principal>?): Array<String>? = null
+    override fun chooseServerAlias(keyType: String?, issuers: Array<out Principal>?, socket: Socket?): String? = null
+    override fun getCertificateChain(alias: String?) = arrayOf(id.cert)
+    override fun getPrivateKey(alias: String?) = id.key
 }
 
 private class TrustAll : X509TrustManager {
