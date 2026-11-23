@@ -362,30 +362,30 @@ private class RemoteIconButton(
                 canvas.drawLine(cx, cy - r * 0.36f, cx, cy + r * 0.08f, strokePaint)
             }
             IconKind.MUTE -> {
-                drawSpeakerBody(canvas, cx - u * 0.32f, cy, u * 0.88f)
+                drawSpeakerBody(canvas, cx - u * 0.34f, cy, u * 0.88f)
                 val d = u * 0.62f
-                canvas.drawLine(cx - d * 0.25f, cy - d * 0.78f, cx + d * 0.95f, cy + d * 0.78f, strokePaint)
+                canvas.drawLine(cx - d * 0.22f, cy - d * 0.78f, cx + d * 0.96f, cy + d * 0.78f, strokePaint)
             }
             IconKind.VOL_DOWN -> {
                 drawSpeakerBody(canvas, cx - u * 0.26f, cy, u * 0.94f)
-                rect.set(cx - u * 0.06f, cy - u * 0.30f, cx + u * 0.34f, cy + u * 0.30f)
+                rect.set(cx - u * 0.10f, cy - u * 0.26f, cx + u * 0.24f, cy + u * 0.26f)
                 canvas.drawArc(rect, -45f, 90f, false, strokePaint)
             }
             IconKind.VOL_UP -> {
-                drawSpeakerBody(canvas, cx - u * 0.34f, cy, u * 0.94f)
-                rect.set(cx - u * 0.12f, cy - u * 0.28f, cx + u * 0.26f, cy + u * 0.28f)
+                drawSpeakerBody(canvas, cx - u * 0.36f, cy, u * 0.94f)
+                rect.set(cx - u * 0.18f, cy - u * 0.24f, cx + u * 0.14f, cy + u * 0.24f)
                 canvas.drawArc(rect, -45f, 90f, false, strokePaint)
-                rect.set(cx - u * 0.20f, cy - u * 0.50f, cx + u * 0.52f, cy + u * 0.50f)
+                rect.set(cx - u * 0.26f, cy - u * 0.42f, cx + u * 0.38f, cy + u * 0.42f)
                 canvas.drawArc(rect, -45f, 90f, false, strokePaint)
             }
             IconKind.BACK -> {
-                val a = u * 1.08f
+                val a = u * 1.12f
                 canvas.drawLine(cx - a * 0.78f, cy, cx + a * 0.78f, cy, strokePaint)
                 canvas.drawLine(cx - a * 0.78f, cy, cx - a * 0.14f, cy - a * 0.66f, strokePaint)
                 canvas.drawLine(cx - a * 0.78f, cy, cx - a * 0.14f, cy + a * 0.66f, strokePaint)
             }
             IconKind.HOME -> {
-                val a = u * 1.08f
+                val a = u * 1.12f
                 val roofPath = Path().apply {
                     moveTo(cx, cy - a * 0.86f)
                     lineTo(cx - a * 0.86f, cy - a * 0.06f)
@@ -1116,6 +1116,10 @@ class MainActivity : Activity() {
                 scanTroublesVisible = !scanTroublesVisible
                 scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE
                 manualIpSectionView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE
+                if (scanTroublesVisible) {
+                    closeScanModal()
+                    show(1)
+                }
             }
         }
         scanDialogCardView = LinearLayout(this).apply {
@@ -1243,9 +1247,9 @@ class MainActivity : Activity() {
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
-                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(80), 0f, 0, 6, 0, 6)
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(82), 0f, 0, 6, 0, 6)
                 addView(roundIconKey(IconKind.BACK, 70) { sendKey(4) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(48), px(1)) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(52), px(1)) })
                 addView(roundIconKey(IconKind.HOME, 70) { sendKey(3) })
             }
 
@@ -1568,6 +1572,7 @@ class MainActivity : Activity() {
     private fun openAndScanNetwork(prefs: android.content.SharedPreferences) {
         val token = ++scanToken
         scanModalOpen = true; scanTroublesVisible = false; scanTroublesTipView.visibility = View.GONE
+        manualIpSectionView.visibility = View.GONE
         scannedIps.clear(); scanResultsContainer.removeAllViews(); scanResultsContainer.visibility = View.GONE; scanBackdropView.visibility = View.VISIBLE
 
         val prefix = getLocalSubnetPrefix()
