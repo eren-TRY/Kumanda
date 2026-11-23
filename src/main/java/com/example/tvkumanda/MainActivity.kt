@@ -696,12 +696,10 @@ class MainActivity : Activity() {
     private fun findWifiNetwork(): Network? {
         return try {
             val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val active = cm.activeNetwork
-            if (active != null && cm.getNetworkCapabilities(active)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                return active
-            }
-            @Suppress("DEPRECATION")
             cm.allNetworks.firstOrNull { net ->
+                val caps = cm.getNetworkCapabilities(net)
+                caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            } ?: cm.activeNetwork?.takeIf { net ->
                 cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
             }
         } catch (_: Exception) {
@@ -717,6 +715,14 @@ class MainActivity : Activity() {
     }
 
     private fun diagnoseConnectionError(e: Exception, targetIp: String, port: Int): String {
+        val wifiNet = findWifiNetwork()
+        if (wifiNet == null) {
+            return if (currentLang == "en") {
+                "Phone is not connected to Wi-Fi. Turn on Wi-Fi on the same network as TV."
+            } else {
+                "Telefon Wi-Fi ağına bağlı değil. TV ile aynı Wi-Fi ağına bağlanın."
+            }
+        }
         return when (e) {
             is ConnectException -> {
                 if (currentLang == "en") {
@@ -1664,9 +1670,13 @@ class MainActivity : Activity() {
 
     private fun expect(c: Conn, field: Int) {
         while (true) {
-            val m = Pb.parse(c.read())
+            val raw = c.read()
+            val m = Pb.parse(raw)
             val st = m.firstOrNull { it.num == 2 }?.number
-            if (st != null && st != 200L && st != 0L) throw IllegalStateException("TV eşleştirmeyi reddetti ($st)")
+            if (st != null && st != 200L && st != 0L) {
+                val hex = raw.joinToString("") { "%02X".format(it) }
+                throw IllegalStateException("TV reddetti ($st) beklenen=$field ham=$hex")
+            }
             if (m.any { it.num == field }) return
         }
     }
