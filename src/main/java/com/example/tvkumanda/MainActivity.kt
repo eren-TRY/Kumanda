@@ -140,7 +140,7 @@ private fun hexToBytes(s: String): ByteArray {
 }
 
 private enum class DpadZone { NONE, UP, RIGHT, DOWN, LEFT, CENTER }
-private enum class IconKind { POWER, MUTE, VOL_DOWN, VOL_UP, BACK, HOME, IOS_SETTINGS, RECONNECT }
+private enum class IconKind { POWER, MUTE, VOL_DOWN, VOL_UP, BACK, HOME, IOS_SETTINGS }
 
 private class DpadWheelView(context: Context, private val onZoneTap: (DpadZone) -> Unit) : View(context) {
     private var sliceFill = Color.parseColor("#1D222E")
@@ -362,20 +362,20 @@ private class RemoteIconButton(
                 canvas.drawLine(cx, cy - r * 0.36f, cx, cy + r * 0.08f, strokePaint)
             }
             IconKind.MUTE -> {
-                drawSpeakerBody(canvas, cx - u * 0.22f, cy, u * 0.92f)
-                val d = u * 0.58f
-                canvas.drawLine(cx - d * 0.55f, cy - d * 0.72f, cx + d * 0.85f, cy + d * 0.72f, strokePaint)
+                drawSpeakerBody(canvas, cx - u * 0.32f, cy, u * 0.88f)
+                val d = u * 0.62f
+                canvas.drawLine(cx - d * 0.25f, cy - d * 0.78f, cx + d * 0.95f, cy + d * 0.78f, strokePaint)
             }
             IconKind.VOL_DOWN -> {
-                drawSpeakerBody(canvas, cx - u * 0.18f, cy, u * 0.94f)
-                rect.set(cx + u * 0.12f, cy - u * 0.36f, cx + u * 0.62f, cy + u * 0.36f)
+                drawSpeakerBody(canvas, cx - u * 0.26f, cy, u * 0.94f)
+                rect.set(cx - u * 0.06f, cy - u * 0.30f, cx + u * 0.34f, cy + u * 0.30f)
                 canvas.drawArc(rect, -45f, 90f, false, strokePaint)
             }
             IconKind.VOL_UP -> {
-                drawSpeakerBody(canvas, cx - u * 0.26f, cy, u * 0.94f)
-                rect.set(cx + u * 0.02f, cy - u * 0.34f, cx + u * 0.48f, cy + u * 0.34f)
+                drawSpeakerBody(canvas, cx - u * 0.34f, cy, u * 0.94f)
+                rect.set(cx - u * 0.12f, cy - u * 0.28f, cx + u * 0.26f, cy + u * 0.28f)
                 canvas.drawArc(rect, -45f, 90f, false, strokePaint)
-                rect.set(cx - u * 0.06f, cy - u * 0.58f, cx + u * 0.78f, cy + u * 0.58f)
+                rect.set(cx - u * 0.20f, cy - u * 0.50f, cx + u * 0.52f, cy + u * 0.50f)
                 canvas.drawArc(rect, -45f, 90f, false, strokePaint)
             }
             IconKind.BACK -> {
@@ -404,13 +404,6 @@ private class RemoteIconButton(
             }
             IconKind.IOS_SETTINGS -> {
                 drawIosGear(canvas, cx, cy, u * 0.98f)
-            }
-            IconKind.RECONNECT -> {
-                val r = u * 0.66f
-                rect.set(cx - r, cy - r, cx + r, cy + r)
-                canvas.drawArc(rect, -35f, 270f, false, strokePaint)
-                canvas.drawLine(cx + r * 0.78f, cy - r * 0.62f, cx + r * 1.06f, cy - r * 0.14f, strokePaint)
-                canvas.drawLine(cx + r * 0.78f, cy - r * 0.62f, cx + r * 0.28f, cy - r * 0.54f, strokePaint)
             }
         }
     }
@@ -583,6 +576,7 @@ class MainActivity : Activity() {
     @Volatile private var pairServerCert: X509Certificate? = null
     @Volatile private var host = ""
     @Volatile private var connectedHost: String? = null
+    @Volatile private var tvDeviceName = ""
     @Volatile private var lastConnectAttemptMs = 0L
     @Volatile private var hapticStrength = 2
     @Volatile private var wheelSizeMode = 1
@@ -630,6 +624,7 @@ class MainActivity : Activity() {
     private lateinit var remoteHeaderDot: View
     private lateinit var bottomLeftGearBtn: RemoteIconButton
     private lateinit var connectCardView: LinearLayout
+    private lateinit var manualIpSectionView: LinearLayout
     private lateinit var settingsCardView: LinearLayout
     private lateinit var updatesCardView: LinearLayout
     private lateinit var updatesTitleView: TextView
@@ -858,8 +853,8 @@ class MainActivity : Activity() {
     }
 
     private fun updateRemoteHeaderIndicator() {
-        val labelIp = connectedHost ?: host.ifBlank { ipBox.text.toString().trim() }
-        remoteHeaderTvName.text = if (labelIp.isNotBlank()) labelIp else t("tvDeviceFallback")
+        val name = tvDeviceName.ifBlank { t("tvDeviceFallback") }
+        remoteHeaderTvName.text = name
         (remoteHeaderDot.background as? GradientDrawable)?.setColor(if (ready && remote != null) cGreen else cMuted)
         syncPowerButtonState()
     }
@@ -990,6 +985,7 @@ class MainActivity : Activity() {
         for (btn in roundIconBtns) {
             btn.background = makeShapeBg(cBtn, cBtnStroke, true)
             btn.setIconColor(cText)
+            btn.setGearHoleColor(cBtn)
         }
 
         scanDialogCardView.background = makeCardBg(cCard, cBtnStroke, 26)
@@ -1003,10 +999,10 @@ class MainActivity : Activity() {
         styleBtn(contactIgBtn, cAccent, cAccentStroke, cAccentText, 15f, 18)
         styleBtn(contactCloseBtn, cBtn, cBtnStroke, cSubtext, 14f, 16)
 
-        styleBtn(scanTvBtnView, cBtn, cBtnStroke, cText, 14.5f, 18)
+        styleBtn(scanTvBtnView, cAccent, cAccentStroke, cAccentText, 15f, 18)
         styleBtn(updatesBtnView, cBtn, cAccentStroke, cText, 14.5f, 18)
         styleBtn(updatesBackBtnView, cBtn, cBtnStroke, cText, 14.5f, 18)
-        styleBtn(connectBtnView, cAccent, cAccentStroke, cAccentText, 16f, 18)
+        styleBtn(connectBtnView, cAccent, cAccentStroke, cAccentText, 15.5f, 18)
         styleBtn(confirmPairBtnView, cAccent, cAccentStroke, cAccentText, 15f, 18)
         styleBtn(autoConnectBtn, if (autoConnectEnabled) cBtn else cCard, cBtnStroke, if (autoConnectEnabled) cText else cSubtext, 14f, 16)
         styleBtn(resetPairBtnView, cRedSoft, cRedStroke, cText, 14f, 16)
@@ -1115,7 +1111,12 @@ class MainActivity : Activity() {
             text = t("scanTroubles"); typeface = Typeface.DEFAULT_BOLD; isClickable = true; isFocusable = true
             setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(13.5f)); setPadding(px(4), px(6), px(4), px(2))
             layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            setOnClickListener { tap(v = this); scanTroublesVisible = !scanTroublesVisible; scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE }
+            setOnClickListener {
+                tap(v = this)
+                scanTroublesVisible = !scanTroublesVisible
+                scanTroublesTipView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE
+                manualIpSectionView.visibility = if (scanTroublesVisible) View.VISIBLE else View.GONE
+            }
         }
         scanDialogCardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(px(20), px(20), px(20), px(20))
@@ -1178,6 +1179,7 @@ class MainActivity : Activity() {
             sp = resources.displayMetrics.scaledDensity.coerceAtLeast(0.75f)
             val prefs = getSharedPreferences("tv", MODE_PRIVATE)
             val paired = prefs.getBoolean("paired", false)
+            tvDeviceName = prefs.getString("tv_name", "") ?: ""
             hapticStrength = prefs.getInt("haptic_level", if (prefs.getBoolean("haptic", true)) 2 else 0).coerceIn(0, 3)
             wheelSizeMode = prefs.getInt("wheel_size", 1).coerceIn(0, wheelSizes.lastIndex)
             autoConnectEnabled = prefs.getBoolean("auto_connect", true)
@@ -1187,7 +1189,7 @@ class MainActivity : Activity() {
             lastStatusDotColor = cMuted
 
             step = "giriş ve durum bileşenleri"
-            ipBox = styledEdit("192.168.0.42", 17f, 18, 15, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 12)).apply { setText(prefs.getString("ip", "")) }
+            ipBox = styledEdit("192.168.0.42", 16.5f, 18, 14, lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 10)).apply { setText(prefs.getString("ip", "")) }
             codeBox = styledEdit(t("codeHint"), 16f, 16, 14, lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 10, 0))
             confirmPairBtnView = Button(this).apply { text = t("confirm"); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, px(54)); setOnClickListener { tap(v = this); finishPairing(codeBox.text.toString()) } }
             codeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE; setPadding(0, px(12), 0, 0); addView(codeBox); addView(confirmPairBtnView) }
@@ -1231,13 +1233,13 @@ class MainActivity : Activity() {
             val volumeRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
                 layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(64), 0f, 0, 2, 0, 12)
+                addView(roundIconKey(IconKind.IOS_SETTINGS, 56) { sendKey(176) })
+                addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
                 addView(roundIconKey(IconKind.MUTE, 56) { sendKey(164) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
                 addView(roundIconKey(IconKind.VOL_DOWN, 56) { sendKey(25) })
                 addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
                 addView(roundIconKey(IconKind.VOL_UP, 56) { sendKey(24) })
-                addView(View(this@MainActivity).apply { layoutParams = lp(px(14), px(1)) })
-                addView(roundIconKey(IconKind.RECONNECT, 56) { manualDisconnect = false; connectClicked() })
             }
             val bottomKeysRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
@@ -1258,24 +1260,34 @@ class MainActivity : Activity() {
 
             step = "bağlantı ekranı"
             connectBtnView = Button(this).apply {
-                text = t("connect"); layoutParams = lp(0, px(58), 1f, 0, 0, 6, 0)
+                text = t("connect"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(52))
                 setOnClickListener {
                     tap(v = this)
                     val trimmed = ipBox.text.toString().trim()
                     if (!isValidIpv4(trimmed)) { uiState(StatusState.ENTER_IP, cRedStroke); return@setOnClickListener }
                     manualDisconnect = false
-                    prefs.edit().putString("ip", trimmed).apply()
+                    tvDeviceName = t("tvDeviceFallback")
+                    prefs.edit().putString("ip", trimmed).putString("tv_name", tvDeviceName).apply()
+                    closeScanModal()
                     if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
                 }
             }
+            tvIpTitleView = sectionTitle(t("tvIp"), 16.5f, 8)
+            manualIpSectionView = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                visibility = View.GONE
+                layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 14, 0, 0)
+                addView(tvIpTitleView)
+                addView(ipBox)
+                addView(connectBtnView)
+            }
             scanTvBtnView = Button(this).apply {
-                text = t("scanTv"); layoutParams = lp(0, px(58), 1f, 6, 0, 0, 0)
+                text = t("scanTv"); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, px(58))
                 setOnClickListener { tap(v = this); openAndScanNetwork(prefs) }
             }
-            tvIpTitleView = sectionTitle(t("tvIp"), 18f, 10)
             connectCardView = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; setPadding(px(16), px(18), px(16), px(18)); layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                addView(tvIpTitleView); addView(ipBox); addView(row(connectBtnView, scanTvBtnView).apply { layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT) }); addView(codeRow)
+                addView(scanTvBtnView); addView(manualIpSectionView); addView(codeRow)
             }
             screens.add(ScrollView(this).apply {
                 visibility = View.GONE
@@ -1517,13 +1529,14 @@ class MainActivity : Activity() {
 
     private fun buildFoundTvCard(prefs: android.content.SharedPreferences, ip: String): LinearLayout {
         val isDeviceConnected = (ready && remote != null && connectedHost == ip)
+        val deviceLabel = if (isDeviceConnected && tvDeviceName.isNotBlank()) tvDeviceName else t("tvDeviceFallback")
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(px(14), px(12), px(14), px(12))
             layoutParams = lp(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 0, 0, 10)
             background = makeCardBg(cSurface, if (isDeviceConnected) cGreen else cBtnStroke, 18)
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL; layoutParams = lp(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f, 0, 0, 8, 0)
-                addView(TextView(this@MainActivity).apply { text = t("tvDeviceFallback"); typeface = Typeface.DEFAULT_BOLD; setTextColor(cText); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14.5f)); setSingleLine() })
+                addView(TextView(this@MainActivity).apply { text = deviceLabel; typeface = Typeface.DEFAULT_BOLD; setTextColor(cText); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(14.5f)); setSingleLine() })
                 addView(TextView(this@MainActivity).apply { text = ip; setTextColor(cSubtext); setTextSize(TypedValue.COMPLEX_UNIT_SP, scaledSp(12.5f)); setSingleLine(); layoutParams = lp(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0f, 0, 2, 0, 0) })
             })
             if (isDeviceConnected) {
@@ -1535,7 +1548,9 @@ class MainActivity : Activity() {
             } else {
                 isClickable = true; isFocusable = true; applyPressAnim(this)
                 setOnClickListener {
-                    tap(v = this); manualDisconnect = false; ipBox.setText(ip); prefs.edit().putString("ip", ip).apply(); closeScanModal()
+                    tap(v = this); manualDisconnect = false; ipBox.setText(ip)
+                    tvDeviceName = t("tvDeviceFallback")
+                    prefs.edit().putString("ip", ip).putString("tv_name", tvDeviceName).apply(); closeScanModal()
                     if (prefs.getBoolean("paired", false)) connectClicked() else startPairing()
                 }
             }
@@ -1813,12 +1828,33 @@ class MainActivity : Activity() {
         return Pb.bytes(1, Pb.int(1, 622) + Pb.bytes(2, info))
     }
 
+    private fun extractDeviceName(fieldData: ByteArray): String? {
+        val topFields = Pb.parse(fieldData)
+        val infoBytes = topFields.firstOrNull { it.num == 2 }?.data ?: fieldData
+        val parsed = Pb.parse(infoBytes)
+        val model = parsed.firstOrNull { it.num == 1 }?.data?.toString(Charsets.UTF_8)?.trim().orEmpty()
+        val vendor = parsed.firstOrNull { it.num == 2 }?.data?.toString(Charsets.UTF_8)?.trim().orEmpty()
+        return when {
+            vendor.isNotBlank() && model.isNotBlank() && !model.startsWith(vendor, ignoreCase = true) -> "$vendor $model"
+            model.isNotBlank() -> model
+            vendor.isNotBlank() -> vendor
+            else -> null
+        }
+    }
+
     private fun readerLoop(c: Conn) {
         try {
             while (true) {
                 for (f in Pb.parse(c.read())) {
                     when (f.num) {
-                        1 -> c.send(configureReply())
+                        1 -> {
+                            extractDeviceName(f.data)?.let { detected ->
+                                tvDeviceName = detected
+                                getSharedPreferences("tv", MODE_PRIVATE).edit().putString("tv_name", detected).apply()
+                                runOnUiThread { updateRemoteHeaderIndicator() }
+                            }
+                            c.send(configureReply())
+                        }
                         2 -> c.send(Pb.bytes(2, Pb.int(1, 622)))
                         8 -> c.send(Pb.bytes(9, Pb.int(1, (Pb.parse(f.data).firstOrNull { it.num == 1 }?.number ?: 0L).toInt())))
                         40 -> {
